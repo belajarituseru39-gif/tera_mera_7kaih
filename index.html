@@ -112,15 +112,11 @@
 </head>
 <body class="w-screen h-screen flex flex-col bg-custom text-slate-800">
 
-    <!-- Container Audio (Tersembunyi) untuk menjamin SFX ter-load -->
+    <!-- Container Audio (Hanya BGM yang di-load eksternal) -->
     <div class="hidden">
         <audio id="bgm-audio" loop preload="auto">
             <source src="https://github.com/belajarituseru39-gif/lagu-teramera/raw/refs/heads/main/Tera%20Mera%20Quest.mp3" type="audio/mpeg">
         </audio>
-        <audio id="sfx-correct" src="https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg" preload="auto"></audio>
-        <audio id="sfx-wrong" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg" preload="auto"></audio>
-        <audio id="sfx-merge" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg" preload="auto"></audio>
-        <audio id="sfx-coin" src="https://actions.google.com/sounds/v1/cartoon/magic_chime_cord.ogg" preload="auto"></audio>
     </div>
 
     <!-- Global Timer Bar -->
@@ -373,7 +369,7 @@
             { lvl: "Fase B", type: "single", stimulus: "Sore hari cuaca sedang cerah dan tidak hujan.", q: "Aktivitas fisik di bawah ini yang merupakan bentuk praktik olahraga sore yang menyehatkan dan menyenangkan bersama teman adalah...", options: ["Duduk di teras rumah sambil menonton video olahraga", "Bermain sepak bola atau bersepeda santai keliling kompleks", "Tiduran di dalam kamar sambil mendengarkan musik ceria", "Berjalan pelan menuju warung untuk membeli es krim"], answer: "Bermain sepak bola atau bersepeda santai keliling kompleks" },
             { lvl: "Fase B", type: "single", stimulus: "Ibu membawakanmu bekal sekolah berupa nasi putih, sayur sawi hijau, dan sepotong ayam goreng.", q: "Tindakan memahami pentingnya makanan sehat ditunjukkan dengan cara...", options: ["Menyimpan bekal tersebut dan memilih membeli ciki di kantin", "Membuang sayur sawi ke tempat sampah karena rasanya pahit", "Memakan habis seluruh isi bekal agar tubuh mendapatkan gizi dan serat seimbang", "Memberikan bekal tersebut kepada teman karena malas mengunyah sayur"], answer: "Memakan habis seluruh isi bekal agar tubuh mendapatkan gizi dan serat seimbang" },
             { lvl: "Fase B", type: "single", stimulus: "Di pojok kelas 3 terdapat rak \"Sudut Baca\" yang berisi berbagai buku cerita dan pengetahuan menarik.", q: "Tindakan nyata yang menunjukkan kamu anak yang gemar belajar adalah...", options: ["Menggunakan rak buku sebagai tempat menyembunyikan mainan", "Membaca buku cerita tersebut dengan tertib saat jam istirahat atau waktu luang", "Membawa pulang buku sekolah tanpa izin dari guru kelas", "Membiarkan buku-buku tersebut berdebu karena malas membuka halaman"], answer: "Membaca buku cerita tersebut dengan tertib saat jam istirahat atau waktu luang" },
-            { lvl: "Fase B", type: "single", stimulus: "Ada seorang teman baru pindah ke kelasmu. Saat jam istirahat, dia hanya duduk diam di pojok kelas dan tampak malu-malu.", q: "Tindakan nyata bermasyarakat yang paling tepat kamu lakukan adalah...", options: ["Membiarkannya sendirian agar dia tidak merasa terganggu", "Mengajak teman-teman lain untuk menertawakan sikap malunya", "Menyapanya dengan ramah dan mengajaknya ikut bermain bersama kelompokmu", "Menyuruhnya membelikan makanan untukmu di kantin"], answer: "Menyapanya dengan ramah dan mengajaknya ikut bermain bersama kelompokmu" },
+            { lvl: "Fase B", type: "single", stimulus: "Ada seorang teman baru pindah ke kelasmu. Saat jam istirahat, dia hanya duduk diam di pojok kelas dan tampak malu-malu.", q: "Tindakan nyata bermasyarakat yang paling tepat kamu lakukan adalah...", options: ["Membiarkan sendirian agar dia tidak merasa terganggu", "Mengajak teman-teman lain untuk menertawakan sikap malunya", "Menyapanya dengan ramah dan mengajaknya ikut bermain bersama kelompokmu", "Menyuruhnya membelikan makanan untukmu di kantin"], answer: "Menyapanya dengan ramah dan mengajaknya ikut bermain bersama kelompokmu" },
             { lvl: "Fase B", type: "single", stimulus: "Jam dinding di rumah sudah menunjukkan pukul 21.00 malam.", q: "Tindakan praktis yang harus segera kamu lakukan agar esok hari bisa bangun pagi dengan tubuh bugar adalah...", options: ["Meminta izin ke orang tua untuk menyalakan televisi di kamar", "Melanjutkan bermain game di ponsel sampai matamu terasa perih", "Mematikan televisi/gawai, merapikan perlengkapan sekolah, dan langsung tidur", "Mengajak kakak mengobrol tentang film kartun sampai larut malam"], answer: "Mematikan televisi/gawai, merapikan perlengkapan sekolah, dan langsung tidur" },
             { lvl: "Fase B", type: "single", stimulus: "Setiap hari Senin sekolah mengadakan upacara bendera tepat pukul 07.15. Rumah Dika berjarak cukup jauh dari sekolah.", q: "Penerapan langkah yang paling tepat agar Dika tidak terlambat adalah...", options: ["Bangun pukul 06.45, lalu berlari sekencang-kencangnya menuju sekolah", "Tidur cepat di hari Minggu malam, menyetel alarm, dan bangun pukul 05.00 pagi", "Meminta guru memundurkan jam mulai upacara khusus untuk dirinya", "Menginap di rumah teman yang posisinya berada tepat di depan sekolah"], answer: "Tidur cepat di hari Minggu malam, menyetel alarm, dan bangun pukul 05.00 pagi" },
             { lvl: "Fase B", type: "single", stimulus: "Kelompok belajarmu sedang mengerjakan tugas kelompok di rumah Made. Saat sore hari, Made meminta izin sebentar untuk melaksanakan ibadah sesuai ajaran agamanya.", q: "Penerapan sikap toleransi yang benar adalah...", options: ["Memaksa Made menunda ibadahnya karena tugas kelompok harus cepat selesai", "Mempersilakan Made beribadah dengan tenang dan menunggunya tanpa membuat kegaduhan", "Meninggalkan rumah Made secara diam-diam karena malas menunggu", "Ikut campur dalam tata cara ibadah Made meskipun berbeda agama"], answer: "Mempersilakan Made beribadah dengan tenang dan menunggunya tanpa membuat kegaduhan" },
@@ -433,14 +429,68 @@
             }
         }
 
+        // --- WEB AUDIO API (SFX ENGINE ANTI-ERROR) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
         let isMuted = false;
         
-        function playSound(id) {
+        function playSound(type) {
             if (isMuted) return;
-            const audio = document.getElementById(`sfx-${id}`);
-            if (audio) {
-                audio.currentTime = 0;
-                audio.play().catch(e => console.log("Audio play error:", e));
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            
+            // Ambil volume dari slider pertama yang ditemukan
+            const volSlider = document.querySelector('.bgm-volume-class');
+            const masterVol = volSlider ? parseFloat(volSlider.value) : 0.5;
+            const sfxVol = Math.min(1, masterVol + 0.3); // SFX sedikit lebih keras
+
+            if (type === 'merge') {
+                // Suara "Pop" seperti gelembung
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+                gainNode.gain.setValueAtTime(sfxVol, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'coin') {
+                // Suara "Ting-Ting" (koin/berhasil pesanan)
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(988, now); // Nada B5
+                osc.frequency.setValueAtTime(1318.5, now + 0.1); // Nada E6
+                gainNode.gain.setValueAtTime(sfxVol * 0.2, now); // Square sedikit nyaring, volume diturunkan
+                gainNode.gain.setValueAtTime(sfxVol * 0.2, now + 0.1);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'correct') {
+                // Suara Kuis Benar (Chime)
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+                gainNode.gain.setValueAtTime(sfxVol * 0.8, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            } else if (type === 'wrong') {
+                // Suara Kuis Salah (Buzzer)
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+                gainNode.gain.setValueAtTime(sfxVol * 0.4, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
             }
         }
 
@@ -470,6 +520,7 @@
             isMuted = !isMuted;
             bgm.muted = isMuted;
             
+            // Perbarui semua tombol mute jika ada
             const muteBtns = document.querySelectorAll('.btn-mute-class');
             const sliders = document.querySelectorAll('.bgm-volume-class');
             
@@ -487,15 +538,11 @@
             const bgm = document.getElementById('bgm-audio');
             bgm.volume = parseFloat(val);
             
-            const sfxVolume = Math.min(1, parseFloat(val) + 0.3);
-            ['sfx-correct', 'sfx-wrong', 'sfx-merge', 'sfx-coin'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.volume = sfxVolume;
-            });
-            
+            // Sinkronisasi semua slider di layar
             const sliders = document.querySelectorAll('.bgm-volume-class');
             sliders.forEach(slider => slider.value = val);
             
+            // Auto unmute jika volume dibesarkan dari 0
             if (val > 0 && isMuted) {
                 toggleMute();
             }
@@ -604,7 +651,7 @@
                                     <button onclick="toggleMute()" class="btn-mute-class w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition active:scale-95 text-lg" title="Mute/Unmute">🔊</button>
                                     <input type="range" min="0" max="1" step="0.05" value="0.5" class="bgm-volume-class w-16 md:w-24 accent-blue-500 cursor-pointer" oninput="changeVolume(this.value)" title="Volume Musik">
                                 </div>
-                                <div class="w-px h-5 bg-slate-300"></div>
+                                <div class="w-px h-5 bg-slate-300 mx-1"></div>
                                 <button onclick="goHome()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition active:scale-95 text-lg" title="Kembali ke Menu (Home)">🏠</button>
                                 <button onclick="toggleFullscreen()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition active:scale-95 text-lg group" title="Layar Penuh">📺</button>
                             </div>
@@ -1151,7 +1198,7 @@
             if (filteredQuizzes.length === 0) filteredQuizzes = ALL_QUIZZES; 
             const quiz = filteredQuizzes[Math.floor(Math.random() * filteredQuizzes.length)];
             
-            // Extract stimulus and question (kompatibel untuk data lama & baru)
+            // Extract stimulus and question
             let stimulusText = quiz.stimulus || "";
             let questionText = quiz.q || "";
             
@@ -1168,7 +1215,6 @@
             const optContainer = tpl.querySelector('.quiz-options');
             optContainer.innerHTML = '';
             
-            // Atur lebar jika tidak ada stimulus sama sekali
             if (stimulusText.trim() === "") {
                 tpl.querySelector('.quiz-stimulus').parentElement.classList.add('hidden');
                 tpl.querySelector('.quiz-question').parentElement.classList.remove('md:w-[55%]');
@@ -1176,7 +1222,6 @@
             }
 
             if (quiz.type === 'complex') {
-                // UI Checkbox ANBK
                 quiz.options.forEach((opt, idx) => {
                     const label = document.createElement('label');
                     label.className = 'flex items-center gap-4 bg-slate-50 hover:bg-blue-50 border-2 border-slate-200 hover:border-blue-300 p-3 md:p-4 rounded-xl cursor-pointer transition text-left group';
@@ -1210,14 +1255,12 @@
                 submitBtn.onclick = () => {
                     const checkedBoxes = Array.from(optContainer.querySelectorAll('.complex-cb:checked')).map(cb => parseInt(cb.value));
                     
-                    // Cek kebenaran opsi kompleks (harus sama persis dengan kunci)
                     const isCorrect = checkedBoxes.length === quiz.answer.length && 
                                       checkedBoxes.every(val => quiz.answer.includes(val));
                     
                     checkQuiz(pIndex, isCorrect ? 'correct' : 'wrong', 'correct');
                 };
             } else {
-                // UI Opsi Biasa (Pilihan Ganda 1 Jawaban)
                 quiz.options.forEach(opt => {
                     const btn = document.createElement('button');
                     btn.className = 'bg-slate-50 hover:bg-blue-100 text-slate-700 hover:text-blue-800 font-bold py-3 md:py-4 rounded-xl border-2 border-slate-200 hover:border-blue-400 transition active:scale-95 text-sm md:text-base shadow-sm text-left px-5 leading-relaxed';
