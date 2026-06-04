@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tera Mera Kitchen Quest</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+            touch-action: none;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .bg-custom {
+            background-image: url('https://i.imgur.com/66IAXOU.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* Split Screen Grids */
+        .grid-layout-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+        .grid-layout-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+
+        /* Grid Cell & Items */
+        .grid-cell {
+            background: rgba(255, 255, 255, 0.6);
+            border: 2px dashed rgba(255, 255, 255, 0.8);
+            border-radius: 0.75rem;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            transition: background 0.2s;
+        }
+        
+        .grid-cell.highlight {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: #4CAF50;
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .order-card { transition: all 0.2s ease-in-out; }
+        .order-card.highlight-order {
+            background: rgba(255, 255, 255, 1);
+            border-color: #4CAF50;
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-item {
+            width: 80%;
+            height: 80%;
+            border-radius: 0.75rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+            transition: transform 0.1s;
+            z-index: 10;
+        }
+        .game-item:active { cursor: grabbing; }
+
+        .game-item.dusty {
+            filter: grayscale(100%) opacity(0.6) drop-shadow(0 0 0);
+            cursor: not-allowed;
+        }
+        .game-item.dusty::after {
+            content: "🕸️";
+            position: absolute;
+            font-size: 1.5rem;
+            bottom: -5px;
+            right: -5px;
+        }
+
+        /* Animations */
+        @keyframes pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-5deg); }
+            75% { transform: translateX(5px) rotate(5deg); }
+        }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
+
+        @keyframes floatReward {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
+        }
+        .animate-reward { animation: floatReward 1s forwards; position: absolute; font-weight: bold; color: #4CAF50; font-size: 2rem; z-index: 999; pointer-events: none; text-shadow: 2px 2px 0px white;}
+
+        .modal-overlay { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
+        ::-webkit-scrollbar { display: none; }
+        
+        .trash-bin { transition: all 0.2s; }
+        .trash-bin.highlight-trash { transform: scale(1.15); filter: drop-shadow(0 0 8px red); }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col bg-custom text-slate-800">
+
+    <!-- Container Audio (Tersembunyi) untuk menjamin SFX ter-load -->
+    <div class="hidden">
+        <audio id="bgm-audio" loop preload="auto">
+            <source src="https://github.com/belajarituseru39-gif/lagu-teramera/raw/refs/heads/main/Tera%20Mera%20Quest.mp3" type="audio/mpeg">
+        </audio>
+        <audio id="sfx-correct" src="https://actions.google.com/sounds/v1/cartoon/bell_ding.ogg" preload="auto"></audio>
+        <audio id="sfx-wrong" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg" preload="auto"></audio>
+        <audio id="sfx-merge" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg" preload="auto"></audio>
+        <audio id="sfx-coin" src="https://actions.google.com/sounds/v1/cartoon/magic_chime_cord.ogg" preload="auto"></audio>
+    </div>
+
+    <!-- Global Timer Bar -->
+    <div id="global-bar" class="w-full bg-slate-800 text-white flex justify-center items-center py-1.5 font-bold text-xl tracking-widest hidden shadow-md z-40 shrink-0">
+        WAKTU TERSISA: <span id="timer-text" class="ml-2 text-yellow-400">00:00</span>
+    </div>
+
+    <!-- Main Game Container (Grid) -->
+    <main id="main-container" class="flex-1 w-full h-full p-2 grid gap-2 overflow-hidden z-10 relative pt-16">
+        <!-- Player Quadrants will be generated here -->
+    </main>
+
+    <!-- Start Menu / Lobby -->
+    <div id="start-screen" class="fixed inset-0 bg-slate-800/80 backdrop-blur-md flex flex-col md:flex-row justify-center items-center z-[100] p-4 md:p-8 gap-8 overflow-y-auto">
+        
+        <!-- Kontrol Halaman Awal (Kiri Atas) -->
+        <div class="absolute top-4 left-4 md:top-6 md:left-6 flex items-center gap-1 md:gap-2 bg-white/95 backdrop-blur-md px-3 py-2 rounded-full shadow-xl border-2 border-slate-300 z-[110]">
+            <button onclick="toggleMute()" class="btn-mute-class w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition active:scale-95 text-lg" title="Mute/Unmute">🔊</button>
+            <input type="range" min="0" max="1" step="0.05" value="0.5" class="bgm-volume-class w-16 md:w-24 accent-blue-500 cursor-pointer" oninput="changeVolume(this.value)" title="Volume Musik">
+            <div class="w-px h-5 bg-slate-300 mx-1"></div>
+            <button onclick="goHome()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition active:scale-95 text-lg" title="Kembali ke Menu (Home)">🏠</button>
+            <button onclick="toggleFullscreen()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition active:scale-95 text-lg group" title="Layar Penuh">📺</button>
+        </div>
+
+        <!-- Left Side: Logo & Narasi -->
+        <div class="flex flex-col items-center justify-center flex-1 max-w-xl text-center">
+            <img src="https://i.imgur.com/X5S3Ilb.png" alt="Tera Mera Kitchen Quest" class="max-w-[70%] md:max-w-sm mb-6 drop-shadow-2xl hover:scale-105 transition duration-500">
+            <h1 class="text-3xl md:text-5xl font-bold text-white mb-4 drop-shadow-md">Tera Mera Kitchen Quest</h1>
+            <p class="text-slate-100 text-lg md:text-xl font-medium bg-black/30 p-6 rounded-3xl border border-white/20 backdrop-blur-sm shadow-xl leading-relaxed">
+                Tantang dirimu dalam mengelola dapur sambil menerapkan <strong>7 Kebiasaan Anak Indonesia Hebat!</strong> Kumpulkan pesanan, gabungkan bahan, dan jawab kuis untuk memulihkan energimu.
+            </p>
+        </div>
+        
+        <!-- Right Side: Settings Panel -->
+        <div class="bg-white text-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-md flex flex-col gap-6 relative mt-16 md:mt-0">
+            
+            <button onclick="openPanduan()" class="absolute -top-4 -right-4 bg-indigo-500 text-white hover:bg-indigo-600 rounded-full py-2 px-4 font-bold transition flex items-center gap-2 shadow-lg border-2 border-white">
+                📖 Panduan
+            </button>
+
+            <!-- Jumlah Pemain -->
+            <div class="flex flex-col">
+                <label class="font-bold text-lg mb-2 text-blue-600 flex items-center gap-2">👥 Jumlah Pemain</label>
+                <div class="relative">
+                    <select id="select-players" onchange="updatePlayerNames()" class="w-full appearance-none bg-blue-50 border-2 border-blue-200 text-slate-700 font-bold py-3 px-4 pr-8 rounded-xl outline-none focus:border-blue-500 transition cursor-pointer text-lg">
+                        <option value="1">Mode Solo (1 Pemain)</option>
+                        <option value="2">2 Pemain (Layar Terpisah)</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-blue-500 font-bold">▼</div>
+                </div>
+            </div>
+
+            <!-- Fase Pendidikan -->
+            <div class="flex flex-col">
+                <label class="font-bold text-lg mb-2 text-blue-600 flex items-center gap-2">🏫 Fase Kelas</label>
+                <div class="relative">
+                    <select id="select-jenjang" class="w-full appearance-none bg-blue-50 border-2 border-blue-200 text-slate-700 font-bold py-3 px-4 pr-8 rounded-xl outline-none focus:border-blue-500 transition cursor-pointer text-lg">
+                        <option value="Fase A">Fase A (Kelas 1 & 2 SD)</option>
+                        <option value="Fase B">Fase B (Kelas 3 & 4 SD)</option>
+                        <option value="Fase C">Fase C (Kelas 5 & 6 SD)</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-blue-500 font-bold">▼</div>
+                </div>
+            </div>
+
+            <!-- Durasi -->
+            <div class="flex flex-col">
+                <label class="font-bold text-lg mb-2 text-blue-600 flex items-center gap-2">⏱️ Durasi Bermain</label>
+                <div class="relative">
+                    <select id="select-duration" class="w-full appearance-none bg-blue-50 border-2 border-blue-200 text-slate-700 font-bold py-3 px-4 pr-8 rounded-xl outline-none focus:border-blue-500 transition cursor-pointer text-lg">
+                        <option value="0">Tanpa Batas Waktu</option>
+                        <option value="10">10 Menit</option>
+                        <option value="15">15 Menit</option>
+                        <option value="30">30 Menit</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-blue-500 font-bold">▼</div>
+                </div>
+            </div>
+
+            <!-- Nama Pemain -->
+            <div class="flex flex-col">
+                <label class="font-bold text-lg mb-2 text-blue-600 flex items-center gap-2">📝 Nama Pemain</label>
+                <div id="names-container" class="grid grid-cols-1 gap-2">
+                    <input type="text" id="nameInput-0" value="Pemain 1" class="bg-slate-50 border-2 border-slate-200 p-3 rounded-xl w-full font-bold text-slate-700 outline-none focus:border-blue-500 transition">
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold text-2xl py-4 rounded-2xl shadow-[0_6px_0_#c2410c] transform transition active:translate-y-1 active:shadow-none mt-2 uppercase tracking-wider flex justify-center items-center gap-2">
+                ▶ Mulai Bermain!
+            </button>
+            
+            <div class="text-center text-xs font-semibold text-slate-400 mt-2 bg-slate-50 py-2 rounded-lg">
+                Ide Pengembang: <br>
+                <span class="text-slate-600">Abdul Rahmat (SDN 011 Balikpapan Tengah)</span><br>
+                081351767574
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals Container -->
+    <!-- Panduan Modal -->
+    <div id="modal-panduan" class="fixed inset-0 modal-overlay flex justify-center items-center hidden z-[150]">
+        <div class="bg-white p-6 md:p-8 rounded-3xl shadow-2xl max-w-2xl w-full h-[80vh] mx-4 flex flex-col border-4 border-indigo-500 relative">
+            <button onclick="closePanduan()" class="absolute top-4 right-4 bg-red-100 text-red-500 hover:bg-red-200 rounded-full w-10 h-10 flex items-center justify-center font-bold text-xl">X</button>
+            <h2 class="text-3xl font-bold text-indigo-600 mb-4 text-center">📖 Panduan Bermain</h2>
+            <div class="flex-1 overflow-y-auto p-2 space-y-4 text-slate-700 font-medium">
+                <p>Selamat datang di Tera Mera Kitchen Quest! Kelola dapur dan jawab tantangan belajarnya.</p>
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>Gunakan <strong>Energi</strong> dengan menekan tombol <strong>Keranjang Belanja</strong> untuk memunculkan bahan mentah acak di papan.</li>
+                    <li><strong>Gabungkan (Drag & Drop)</strong> dua bahan yang sama persis untuk menciptakannya menjadi hidangan baru yang lebih tinggi levelnya.
+                        <ul class="list-disc pl-5 mt-1 text-sm text-slate-500">
+                            <li>2 Roti = Roti Selai ➡️ 2 Roti Selai = Sandwich</li>
+                            <li>2 Nasi = Nasi Goreng ➡️ 2 Nasi Goreng = Nasi Kuning</li>
+                            <li>2 Daging = Steak ➡️ 2 Steak = Rawon</li>
+                            <li>2 Jeruk = Es Jeruk ➡️ 2 Es Jeruk = Jus Jeruk</li>
+                            <li>2 Air = Botol Air ➡️ 2 Botol = Infused Water</li>
+                        </ul>
+                    </li>
+                    <li>Lihat pesanan pelanggan di bagian atas papan Anda. Seret hidangan yang sesuai ke karakter pelanggan tersebut untuk mendapatkan <strong>Uang Kertas</strong>.</li>
+                    <li>Jika papan penuh, seret bahan yang tidak terpakai ke <strong>Tempat Sampah</strong>.</li>
+                    <li>Jika energi habis, tekan tombol <strong>Kumpulkan Energi</strong> dan jawab kuis <strong>7 Kebiasaan Anak Hebat</strong> dengan benar untuk memulihkan 10 Energi.</li>
+                    <li>Kumpulkan koin sebanyak-banyaknya hingga 600 Koin untuk menang!</li>
+                </ol>
+            </div>
+            <button onclick="closePanduan()" class="w-full mt-4 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 rounded-xl transition">Tutup Panduan</button>
+        </div>
+    </div>
+
+    <!-- Quiz Modals Template (Layout ANBK) -->
+    <div id="modal-quiz-template" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center hidden z-50 p-2 md:p-6">
+        <div class="bg-white rounded-3xl shadow-2xl w-full h-full max-w-6xl max-h-[800px] transform transition-all border-4 border-blue-400 relative flex flex-col overflow-hidden">
+            <!-- Header Kuis -->
+            <div class="bg-blue-600 text-white p-3 md:p-4 shrink-0 flex justify-between items-center">
+                <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2"><span class="text-2xl">🧠</span> Kuis 7 Kebiasaan Anak Hebat</h2>
+                <span class="text-xs md:text-sm font-bold bg-blue-800 px-4 py-1.5 rounded-full shadow-inner tracking-wide">+10 ENERGI</span>
+            </div>
+            
+            <div class="flex-1 flex flex-col md:flex-row overflow-hidden bg-slate-200">
+                <!-- Left: Stimulus -->
+                <div class="w-full md:w-[45%] p-4 md:p-8 border-b md:border-b-0 md:border-r border-slate-300 overflow-y-auto bg-slate-50">
+                    <div class="flex items-center gap-2 mb-4 pb-2 border-b-2 border-slate-200">
+                        <span class="text-xl">📄</span>
+                        <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">Informasi / Cerita</h3>
+                    </div>
+                    <p class="quiz-stimulus text-sm md:text-base text-slate-800 text-justify leading-relaxed font-medium whitespace-pre-wrap"></p>
+                </div>
+                
+                <!-- Right: Soal & Opsi -->
+                <div class="w-full md:w-[55%] p-4 md:p-8 overflow-y-auto flex flex-col bg-white">
+                    <div class="flex items-center gap-2 mb-4 pb-2 border-b-2 border-slate-100">
+                        <span class="text-xl">❓</span>
+                        <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">Pertanyaan</h3>
+                    </div>
+                    <p class="quiz-question text-base md:text-lg font-bold text-slate-900 mb-6 whitespace-pre-wrap leading-relaxed"></p>
+                    
+                    <div class="quiz-options flex flex-col gap-3 flex-1">
+                        <!-- Options generated by JS -->
+                    </div>
+                    
+                    <div class="quiz-action mt-6 hidden shrink-0">
+                         <button class="btn-submit-complex w-full bg-orange-500 text-white font-bold py-3 md:py-4 rounded-xl shadow-[0_4px_0_#c2410c] hover:bg-orange-600 active:translate-y-1 active:shadow-none transition text-lg md:text-xl uppercase tracking-wider">
+                             Jawab Pertanyaan
+                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Box Modal -->
+    <div id="modal-message" class="fixed inset-0 modal-overlay flex justify-center items-center hidden z-[200]">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full mx-4 text-center transform transition-all scale-95 border-4 border-slate-300">
+            <h2 id="msg-title" class="text-2xl font-bold text-slate-800 mb-4">Pesan</h2>
+            <p id="msg-text" class="text-lg text-slate-600 mb-6 font-medium">Isi pesan...</p>
+            <button onclick="closeModalMessage()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-xl shadow-md w-full active:scale-95 transition">Oke, Mengerti!</button>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="modal-confirm" class="fixed inset-0 modal-overlay flex justify-center items-center hidden z-[250]">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full mx-4 text-center transform transition-all border-4 border-orange-400">
+            <h2 id="confirm-title" class="text-2xl font-bold text-slate-800 mb-4">Konfirmasi</h2>
+            <p id="confirm-text" class="text-lg text-slate-600 mb-6 font-medium">Apakah kamu yakin?</p>
+            <div class="flex gap-4">
+                <button id="btn-confirm-yes" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition">Ya</button>
+                <button onclick="closeConfirmModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-xl shadow-md active:scale-95 transition">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA & ASSETS ---
+        const CHAINS = {
+            roti: [
+                { id: "roti_1", level: 1, name: "Roti", img: "https://i.imgur.com/Yp19YaX.png", color: "#fef08a" },
+                { id: "roti_2", level: 2, name: "Roti Selai", img: "https://i.imgur.com/4e0qzR2.png", color: "#fde047" },
+                { id: "roti_3", level: 3, name: "Sandwich", img: "https://i.imgur.com/rreDpjC.png", color: "#facc15" }
+            ],
+            jeruk: [
+                { id: "jeruk_1", level: 1, name: "Jeruk", img: "https://i.imgur.com/vZ2znsn.png", color: "#fed7aa" },
+                { id: "jeruk_2", level: 2, name: "Es Jeruk", img: "https://i.imgur.com/meHJNyj.png", color: "#fdba74" },
+                { id: "jeruk_3", level: 3, name: "Jus Jeruk", img: "https://i.imgur.com/6eeA9HE.png", color: "#fb923c" }
+            ],
+            daging: [
+                { id: "daging_1", level: 1, name: "Daging", img: "https://i.imgur.com/ck13aGY.png", color: "#fecaca" },
+                { id: "daging_2", level: 2, name: "Steak", img: "https://i.imgur.com/FyWXPHg.png", color: "#fca5a5" },
+                { id: "daging_3", level: 3, name: "Rawon", img: "https://i.imgur.com/pP3EZ0A.png", color: "#f87171" }
+            ],
+            nasi: [
+                { id: "nasi_1", level: 1, name: "Nasi", img: "https://i.imgur.com/v0hgKwk.png", color: "#e2e8f0" },
+                { id: "nasi_2", level: 2, name: "Nasi Goreng", img: "https://i.imgur.com/CsxzFza.png", color: "#cbd5e1" },
+                { id: "nasi_3", level: 3, name: "Nasi Kuning", img: "https://i.imgur.com/KbBgKhi.png", color: "#fef08a" }
+            ],
+            air: [
+                { id: "air_1", level: 1, name: "Air Mineral", img: "https://i.imgur.com/QvFBJ4J.png", color: "#bfdbfe" },
+                { id: "air_2", level: 2, name: "Botol Air", img: "https://i.imgur.com/wHGRVuS.png", color: "#93c5fd" },
+                { id: "air_3", level: 3, name: "Infused Water", img: "https://i.imgur.com/JUdOILb.png", color: "#60a5fa" }
+            ]
+        };
+
+        const BASE_ITEMS = [CHAINS.roti[0], CHAINS.jeruk[0], CHAINS.daging[0], CHAINS.nasi[0], CHAINS.air[0]];
+
+        // --- DATABASE SOAL 7 KAIH ---
+        const ALL_QUIZZES = [
+            // --- SOAL FASE A (KELAS 1-2 SD) ---
+            { lvl: "Fase A", type: "single", stimulus: "Anak Indonesia yang hebat membiasakan diri untuk bangun pagi setiap hari.", q: "Waktu bangun pagi yang baik adalah antara pukul...", options: ["04.00 sampai 06.00 pagi", "08.00 sampai 09.00 pagi", "10.00 sampai 11.00 siang"], answer: "04.00 sampai 06.00 pagi" },
+            { lvl: "Fase A", type: "single", stimulus: "", q: "Sebelum makan bekal di kelas, kita sebaiknya melakukan kebiasaan...", options: ["Bermain kejar-kejaran", "Berdoa kepada Tuhan", "Bernyanyi dengan suara keras"], answer: "Berdoa kepada Tuhan" },
+            { lvl: "Fase A", type: "single", stimulus: "", q: "Melakukan senam atau berolahraga pagi bersama guru membuat tubuh kita menjadi...", options: ["Lemas dan mengantuk", "Sehat dan bersemangat", "Sakit dan pusing"], answer: "Sehat dan bersemangat" },
+            { lvl: "Fase A", type: "single", stimulus: "Agar makanan yang kita makan bergizi, setengah bagian piring makan kita sebaiknya diisi oleh sayuran dan buah-buahan.", q: "Agar makanan yang kita makan bergizi, setengah bagian piring makan kita sebaiknya diisi oleh...", options: ["Sayuran dan buah-buahan", "Es krim dan cokelat", "Kerupuk dan ciki"], answer: "Sayuran dan buah-buahan" },
+            { lvl: "Fase A", type: "single", stimulus: "", q: "Membaca buku cerita yang seru di pojok baca kelas bermanfaat untuk...", options: ["Membuat mata kita cepat lelah", "Menambah pengetahuan dan wawasan", "Menghabiskan waktu bermain"], answer: "Menambah pengetahuan dan wawasan" },
+            { lvl: "Fase A", type: "single", stimulus: "", q: "Saat kita tidak sengaja menyenggol teman hingga pensilnya jatuh, kata baik yang harus diucapkan adalah...", options: ["Terima kasih", "Tolong", "Maaf"], answer: "Maaf" },
+            { lvl: "Fase A", type: "single", stimulus: "", q: "Mengapa anak hebat harus tidur cepat di malam hari dan tidak larut malam?", options: ["Agar bisa bermain game lebih lama", "Agar organ tubuh pulih dan mudah bangun pagi", "Agar tidak perlu belajar di malam hari"], answer: "Agar organ tubuh pulih dan mudah bangun pagi" },
+            { lvl: "Fase A", type: "single", stimulus: "Ali ingin bangun pagi besok jam 05.00 agar tidak terlambat ke sekolah.", q: "Apa yang sebaiknya Ali lakukan malam ini?", options: ["Menonton televisi sampai larut malam", "Tidur lebih cepat dan memasang jam alarm", "Makan makanan yang sangat banyak"], answer: "Tidur lebih cepat dan memasang jam alarm" },
+            { lvl: "Fase A", type: "single", stimulus: "Di sekolah, Adi melihat temannya sedang berdoa dengan cara yang berbeda dari agamanya.", q: "Sikap Adi sebaiknya adalah...", options: ["Mengajak teman itu bermain saat dia berdoa", "Tenang dan menghormati temannya yang sedang berdoa", "Menertawakan cara berdoa temannya"], answer: "Tenang dan menghormati temannya yang sedang berdoa" },
+            { lvl: "Fase A", type: "single", stimulus: "Setiap pagi, guru mengajak siswa melakukan aktivitas fisik ringan sebelum mulai belajar.", q: "Kegiatan di bawah ini yang termasuk olahraga pagi yang menyenangkan adalah...", options: ["Duduk diam di kursi kelas", "Mengikuti Senam Anak Indonesia Hebat", "Mengobrol bersama teman di kantin"], answer: "Mengikuti Senam Anak Indonesia Hebat" },
+            { lvl: "Fase A", type: "single", stimulus: "", q: "Sebelum menyentuh sendok dan memakan bekal, aturan kebersihan yang wajib kita lakukan adalah...", options: ["Mengelap tangan ke baju", "Mencuci tangan pakai sabun dan air mengalir", "Langsung makan saja karena tangan terlihat bersih"], answer: "Mencuci tangan pakai sabun dan air mengalir" },
+            { lvl: "Fase A", type: "single", stimulus: "Boni ingin bisa membaca buku dengan lancar.", q: "Langkah teratur yang harus dilakukan Boni di rumah adalah...", options: ["Meminta ibu untuk membacakan terus setiap hari", "Disiplin berlatih membaca sesuai jadwal belajar", "Membeli buku yang banyak tetapi hanya disimpan"], answer: "Disiplin berlatih membaca sesuai jadwal belajar" },
+            { lvl: "Fase A", type: "single", stimulus: "Saat jam istirahat selesai, mainan di kelas tampak berantakan.", q: "Tindakan anak hebat yang peduli lingkungan kelas adalah...", options: ["Membiarkannya karena ada penjaga sekolah", "Bergotong-royong bersama teman merapikan mainan", "Pindah bermain ke teras kelas lain"], answer: "Bergotong-royong bersama teman merapikan mainan" },
+            { lvl: "Fase A", type: "single", stimulus: "Orang tua mengajarkan aturan Screen Zone (wilayah bebas gadget).", q: "Ruangan di rumah yang harus bersih dari ponsel atau tablet saat malam hari adalah...", options: ["Halaman rumah", "Kamar tidur dan ruang makan", "Garasi mobil"], answer: "Kamar tidur dan ruang makan" },
+            { lvl: "Fase A", type: "single", stimulus: "Cerita Dua Teman\nTono tidur pukul 20.30 malam dan bangun jam 05.00 pagi dengan ceria.\nDidi menonton video di handphone sampai pukul 23.30 malam dan bangun kesiangan.\nDi sekolah, Didi terlihat lemas dan pusing saat belajar membaca.", q: "Mengapa hal itu bisa terjadi pada Didi?", options: ["Karena Didi belajar terlalu keras semalaman", "Karena Didi kekurangan waktu tidur akibat bermain handphone sampai larut malam", "Karena Didi bangun terlalu pagi di hari itu"], answer: "Karena Didi kekurangan waktu tidur akibat bermain handphone sampai larut malam" },
+            { lvl: "Fase A", type: "single", stimulus: "Perhatikan dua menu bekal makan siang di bawah ini!\nBekal A: Nasi putih, mie instan, dan kerupuk.\nBekal B: Nasi putih, sayur bayam, ikan goreng, dan buah pisang.", q: "Bekal mana yang paling baik kamu pilih agar tubuhmu kuat dan terhindar dari penyakit?", options: ["Bekal A, karena mie instan rasanya sangat gurih", "Bekal B, karena mengandung gizi seimbang yang dibutuhkan tubuh", "Bekal A dan B sama saja kesehatannya"], answer: "Bekal B, karena mengandung gizi seimbang yang dibutuhkan tubuh" },
+            { lvl: "Fase A", type: "single", stimulus: "Bermain Lompat Tali\nSaat bermain lompat tali di lapangan sekolah, kaki Rara tersangkut tali lalu ia terjatuh.\nSinta segera membantu Rara berdiri, sedangkan Joni tertawa terbahak-bahak.", q: "Sikap siapa yang meniru kebiasaan \"Bermasyarakat\" yang baik dan penuh rasa empati?", options: ["Sikap Joni, karena jatuh adalah hal yang lucu", "Sikap Sinta, karena membantu teman yang kesulitan adalah perbuatan terpuji", "Tidak ada yang benar karena lompat tali permainan berbahaya"], answer: "Sikap Sinta, karena membantu teman yang kesulitan adalah perbuatan terpuji" },
+            { lvl: "Fase A", type: "single", stimulus: "Setiap pagi Edo merasa malas bergerak, tubuhnya terasa kaku, dan dia sering mengantuk di kelas.", q: "Berdasarkan gerakan 7 KAIH, saran terbaik apa yang bisa kamu berikan kepada Edo?", options: ["Menyarankan Edo untuk tidur lebih malam lagi", "Menyarankan Edo tidur cepat dan rutin melakukan olahraga pagi ringan", "Menyarankan Edo membawa camilan manis yang banyak ke sekolah"], answer: "Menyarankan Edo tidur cepat dan rutin melakukan olahraga pagi ringan" },
+            { lvl: "Fase A", type: "single", stimulus: "Lani membaca buku cerita di meja dengan lampu yang terang.\nPutu membaca buku pelajaran sambil tiduran di kasur dengan lampu kamar yang redup.", q: "Siapa yang sudah merawat kesehatan matanya dengan benar saat belajar?", options: ["Putu, karena membaca sambil tidur sangat santai", "Lani, karena membaca di tempat terang dengan posisi duduk menjaga kesehatan mata", "Keduanya salah karena membaca buku bisa merusak mata"], answer: "Lani, karena membaca di tempat terang dengan posisi duduk menjaga kesehatan mata" },
+            { lvl: "Fase A", type: "single", stimulus: "Jam dinding di rumah sudah menunjukkan pukul 20.00 malam. Film kartun kesukaanmu di televisi ternyata belum selesai.", q: "Langkah cerdas apa yang kamu ambil sebagai anak Indonesia hebat?", options: ["Terus menonton televisi sampai filmnya benar-benar habis", "Mematikan televisi, merapikan buku sekolah, lalu bersiap untuk tidur cepat", "Menangis agar orang tua mengizinkan menonton sampai larut malam"], answer: "Mematikan televisi, merapikan buku sekolah, lalu bersiap untuk tidur cepat" },
+
+            // --- SOAL FASE B (KELAS 3-4 SD) ---
+            { lvl: "Fase B", type: "single", stimulus: "Setiap pagi, Bagas selalu bangun sendiri pukul 05.00 tanpa perlu dibangunkan oleh orang tuanya secara berulang-ulang.", q: "Tindakan nyata yang ditunjukkan oleh Bagas merupakan contoh praktik...", options: ["Menghemat waktu bermain di rumah", "Kemandirian dan kedisiplinan mengelola waktu sejak dini", "Persiapan untuk tidur kembali di siang hari", "Ketaatan karena takut dihukum guru"], answer: "Kemandirian dan kedisiplinan mengelola waktu sejak dini" },
+            { lvl: "Fase B", type: "single", stimulus: "Ketika kamu sedang asyik bermain sepeda di halaman rumah, waktu untuk melakukan ibadah sesuai agamamu telah tiba.", q: "Praktik anak hebat yang benar adalah...", options: ["Melanjutkan bermain sepeda sampai hari mulai malam", "Menunggu disuruh secara keras oleh orang tua baru pulang", "Segera merapikan sepeda dan bersiap melaksanakan ibadah tepat waktu", "Meminta teman untuk menggantikan kita beribadah"], answer: "Segera merapikan sepeda dan bersiap melaksanakan ibadah tepat waktu" },
+            { lvl: "Fase B", type: "single", stimulus: "Sore hari cuaca sedang cerah dan tidak hujan.", q: "Aktivitas fisik di bawah ini yang merupakan bentuk praktik olahraga sore yang menyehatkan dan menyenangkan bersama teman adalah...", options: ["Duduk di teras rumah sambil menonton video olahraga", "Bermain sepak bola atau bersepeda santai keliling kompleks", "Tiduran di dalam kamar sambil mendengarkan musik ceria", "Berjalan pelan menuju warung untuk membeli es krim"], answer: "Bermain sepak bola atau bersepeda santai keliling kompleks" },
+            { lvl: "Fase B", type: "single", stimulus: "Ibu membawakanmu bekal sekolah berupa nasi putih, sayur sawi hijau, dan sepotong ayam goreng.", q: "Tindakan memahami pentingnya makanan sehat ditunjukkan dengan cara...", options: ["Menyimpan bekal tersebut dan memilih membeli ciki di kantin", "Membuang sayur sawi ke tempat sampah karena rasanya pahit", "Memakan habis seluruh isi bekal agar tubuh mendapatkan gizi dan serat seimbang", "Memberikan bekal tersebut kepada teman karena malas mengunyah sayur"], answer: "Memakan habis seluruh isi bekal agar tubuh mendapatkan gizi dan serat seimbang" },
+            { lvl: "Fase B", type: "single", stimulus: "Di pojok kelas 3 terdapat rak \"Sudut Baca\" yang berisi berbagai buku cerita dan pengetahuan menarik.", q: "Tindakan nyata yang menunjukkan kamu anak yang gemar belajar adalah...", options: ["Menggunakan rak buku sebagai tempat menyembunyikan mainan", "Membaca buku cerita tersebut dengan tertib saat jam istirahat atau waktu luang", "Membawa pulang buku sekolah tanpa izin dari guru kelas", "Membiarkan buku-buku tersebut berdebu karena malas membuka halaman"], answer: "Membaca buku cerita tersebut dengan tertib saat jam istirahat atau waktu luang" },
+            { lvl: "Fase B", type: "single", stimulus: "Ada seorang teman baru pindah ke kelasmu. Saat jam istirahat, dia hanya duduk diam di pojok kelas dan tampak malu-malu.", q: "Tindakan nyata bermasyarakat yang paling tepat kamu lakukan adalah...", options: ["Membiarkannya sendirian agar dia tidak merasa terganggu", "Mengajak teman-teman lain untuk menertawakan sikap malunya", "Menyapanya dengan ramah dan mengajaknya ikut bermain bersama kelompokmu", "Menyuruhnya membelikan makanan untukmu di kantin"], answer: "Menyapanya dengan ramah dan mengajaknya ikut bermain bersama kelompokmu" },
+            { lvl: "Fase B", type: "single", stimulus: "Jam dinding di rumah sudah menunjukkan pukul 21.00 malam.", q: "Tindakan praktis yang harus segera kamu lakukan agar esok hari bisa bangun pagi dengan tubuh bugar adalah...", options: ["Meminta izin ke orang tua untuk menyalakan televisi di kamar", "Melanjutkan bermain game di ponsel sampai matamu terasa perih", "Mematikan televisi/gawai, merapikan perlengkapan sekolah, dan langsung tidur", "Mengajak kakak mengobrol tentang film kartun sampai larut malam"], answer: "Mematikan televisi/gawai, merapikan perlengkapan sekolah, dan langsung tidur" },
+            { lvl: "Fase B", type: "single", stimulus: "Setiap hari Senin sekolah mengadakan upacara bendera tepat pukul 07.15. Rumah Dika berjarak cukup jauh dari sekolah.", q: "Penerapan langkah yang paling tepat agar Dika tidak terlambat adalah...", options: ["Bangun pukul 06.45, lalu berlari sekencang-kencangnya menuju sekolah", "Tidur cepat di hari Minggu malam, menyetel alarm, dan bangun pukul 05.00 pagi", "Meminta guru memundurkan jam mulai upacara khusus untuk dirinya", "Menginap di rumah teman yang posisinya berada tepat di depan sekolah"], answer: "Tidur cepat di hari Minggu malam, menyetel alarm, dan bangun pukul 05.00 pagi" },
+            { lvl: "Fase B", type: "single", stimulus: "Kelompok belajarmu sedang mengerjakan tugas kelompok di rumah Made. Saat sore hari, Made meminta izin sebentar untuk melaksanakan ibadah sesuai ajaran agamanya.", q: "Penerapan sikap toleransi yang benar adalah...", options: ["Memaksa Made menunda ibadahnya karena tugas kelompok harus cepat selesai", "Mempersilakan Made beribadah dengan tenang dan menunggunya tanpa membuat kegaduhan", "Meninggalkan rumah Made secara diam-diam karena malas menunggu", "Ikut campur dalam tata cara ibadah Made meskipun berbeda agama"], answer: "Mempersilakan Made beribadah dengan tenang dan menunggunya tanpa membuat kegaduhan" },
+            { lvl: "Fase B", type: "single", stimulus: "Guru PJOK mengajak kelas 3 melakukan jalan sehat menyusuri trotoar di sekitar lingkungan sekolah. Selama di perjalanan, penerapan sikap tertib yang benar oleh siswa adalah...", q: "Selama di perjalanan, penerapan sikap tertib yang benar oleh siswa adalah...", options: ["Saling dorong dengan teman agar bisa berada di barisan paling depan", "Berjalan zigzag di tengah jalan raya agar mendapatkan perhatian orang lain", "Berjalan rapi satu baris di atas trotoar mengikuti arahan guru tanpa mengganggu pengguna jalan", "Berhenti di warung pinggir jalan secara mendadak tanpa izin guru"], answer: "Berjalan rapi satu baris di atas trotoar mengikuti arahan guru tanpa mengganggu pengguna jalan" },
+            { lvl: "Fase B", type: "single", stimulus: "Saat jam istirahat, kamu membawa uang saku Rp5.000,00 dan ingin membeli camilan di kantin sekolah. Di meja kantin terdapat gorengan yang sangat berminyak dan buah potong segar yang ditutup mika rapat.", q: "Penerapan pilihan makanan sehat yang benar adalah...", options: ["Membeli gorengan yang banyak agar perut terasa sangat kenyang", "Membeli permen berwarna mencolok karena rasanya sangat manis", "Memilih buah potong segar karena bersih, kaya vitamin, dan rendah lemak jahat", "Tidak membeli apa pun dan menyimpan uang untuk membeli mainan sepulang sekolah"], answer: "Memilih buah potong segar karena bersih, kaya vitamin, dan rendah lemak jahat" },
+            { lvl: "Fase B", type: "single", stimulus: "Besok pagi kelas 4 akan mengadakan ulangan harian IPAS materi bagian tubuh tumbuhan.", q: "Langkah penerapan belajar mandiri yang paling efektif kamu lakukan di rumah adalah...", options: ["Membaca seluruh isi buku paket IPAS dari halaman pertama sampai akhir dalam waktu 5 menit", "Belajar sambil menonton televisi yang suaranya dinyalakan dengan keras", "Mengulang kembali catatan materi penting selama 30 menit secara fokus dan menjauhkan gawai", "Meminta kakak mengerjakan seluruh soal latihan yang ada di buku tugasmu"], answer: "Mengulang kembali catatan materi penting selama 30 menit secara fokus dan menjauhkan gawai" },
+            { lvl: "Fase B", type: "single", stimulus: "Setelah selesai bermain permainan tradisional bentengan bersama teman-teman di lapangan sekolah, kamu melihat beberapa botol plastik bekas air minum berserakan di tanah.", q: "Penerapan sikap peduli lingkungan yang harus dilakukan adalah...", options: ["Membiarkan botol tersebut karena bukan kamu yang membuangnya", "Menyuruh adik kelas untuk memungut dan membuang botol-botol tersebut", "Mengajak teman-teman sekelompokmu bersama-sama memungut sampah dan membuangnya ke tempat sampah", "Menendang botol-botol tersebut ke sudut lapangan agar tidak terlihat kotor"], answer: "Mengajak teman-teman sekelompokmu bersama-sama memungut sampah dan membuangnya ke tempat sampah" },
+            { lvl: "Fase B", type: "single", stimulus: "Orang tuamu menerapkan aturan Screen Zone (wilayah bebas gadget) di ruang makan saat makan malam bersama.", q: "Penerapan tindakanmu yang benar saat jam makan malam tiba adalah...", options: ["Membawa ponsel ke meja makan tetapi disembunyikan di bawah piring", "Makan dengan cepat agar bisa segera kembali bermain gawai di kamar", "Menaruh gawai di dalam kamar atau tas sebelum duduk bersama keluarga di meja makan", "Meminta orang tua membatalkan aturan tersebut karena sedang ada event game penting"], answer: "Menaruh gawai di dalam kamar atau tas sebelum duduk bersama keluarga di meja makan" },
+            { lvl: "Fase B", type: "single", stimulus: "Perhatikan dua cerita pendek di bawah ini:\nDani: Bermain game online di tabletnya sampai pukul 23.30 malam. Keesokan harinya dia kesiangan, terburu-buru ke sekolah tanpa sarapan, dan mengantuk saat pelajaran Matematika.\nEdo: Mematikan semua gawai pukul 20.30 malam, lalu langsung tidur. Keesokan harinya dia bangun pukul 05.00, sarapan sehat, dan bisa mengikuti pelajaran Matematika dengan segar dan fokus.", q: "Berdasarkan analisis kedua cerita di atas, mengapa Dani mengalami kesulitan berkonsentrasi saat belajar di kelas?", options: ["Karena pelajaran Matematika di sekolah Dani jauh lebih sulit daripada sekolah Edo", "Karena Dani melanggar kebiasaan tidur cepat akibat bermain gawai, sehingga tubuhnya kelelahan pada esok hari", "Karena Dani lupa membawa buku paket Matematika ke sekolah", "Karena Edo memiliki ingatan yang lebih kuat sejak lahir daripada Dani"], answer: "Karena Dani melanggar kebiasaan tidur cepat akibat bermain gawai, sehingga tubuhnya kelelahan pada esok hari" },
+            { lvl: "Fase B", type: "single", stimulus: "Perhatikan menu bekal makan siang dua siswa kelas 4 berikut:\nBekal Fanya: Nasi goreng biasa, mie instan goreng, dan kerupuk putih.\nBekal Sinta: Nasi putih, tumis kangkung, sepotong ikan goreng, dan satu buah jeruk manis.", q: "Jika kamu harus mengevaluasi kedua menu tersebut berdasarkan standar kesehatan tubuh, kesimpulan penilaian yang paling tepat adalah...", options: ["Bekal Fanya lebih baik karena karbohidrat ganda dari nasi dan mie memberikan energi yang sangat besar", "Bekal Fanya dan Sinta sama-sama sehat karena keduanya mengenyangkan perut saat siang hari", "Bekal Sinta lebih baik karena memenuhi porsi seimbang yang mengandung serat, vitamin, dan protein untuk pertumbuhan", "Bekal Sinta kurang baik karena sayur kangkung bisa membuat mengantuk di kelas"], answer: "Bekal Sinta lebih baik karena memenuhi porsi seimbang yang mengandung serat, vitamin, dan protein untuk pertumbuhan" },
+            { lvl: "Fase B", type: "single", stimulus: "Kasus Piket Kelas\nSaat regu piket kelas 3 bertugas membersihkan ruangan, Bayu hanya mau memilih tugas menghapus papan tulis yang ringan. Sementara itu, tiga temannya yang lain harus menyapu lantai yang luas, mengepel, dan mengangkat tempat sampah yang berat sendirian. Akibatnya, kelas selesai dibersihkan dalam waktu yang sangat lama dan teman-temannya kelelahan.", q: "Berdasarkan nilai-nilai pembiasaan \"Bermasyarakat\", analisis mengapa pembagian kerja kelompok tersebut dinilai tidak berjalan dengan baik?", options: ["Karena menghapus papan tulis seharusnya dilakukan oleh guru kelas sebelum pulang", "Karena anggota regu piket jumlahnya terlalu sedikit untuk membersihkan satu kelas", "Karena tidak menerapkan prinsip gotong royong yang adil, sehingga membebani sebagian orang dan menghambat tujuan bersama", "Karena kelas tersebut terlalu kotor sehingga menyapu lantai memerlukan waktu lama"], answer: "Karena tidak menerapkan prinsip gotong royong yang adil, sehingga membebani sebagian orang dan menghambat tujuan bersama" },
+            { lvl: "Fase B", type: "single", stimulus: "Siti adalah anak yang rajin, tetapi belakangan ini dia merasa sangat cepat bosan, jenuh, dan mengantuk jika harus menghafal perkalian matematika sendirian dengan cara membaca buku teks di dalam kamarnya secara terus-menerus.", q: "Rancangan tindakan kreatif apa yang bisa dibuat Siti agar praktik belajarnya kembali bersemangat dan menyenangkan (joyful)?", options: ["Memutuskan berhenti belajar matematika dan fokus pada pelajaran olahraga saja", "Mengkreasi kartu angka bergambar untuk bermain tebak-tebakan perkalian seru bersama adik atau orang tuanya", "Meminta orang tua membelikan mainan baru yang mahal sebagai syarat sebelum mulai belajar", "Memaksa diri membaca buku sambil mendengarkan musik yang sangat keras di kamar"], answer: "Mengkreasi kartu angka bergambar untuk bermain tebak-tebakan perkalian seru bersama adik atau orang tuanya" },
+            { lvl: "Fase B", type: "single", stimulus: "Di halaman sekolah terdapat genangan air yang cukup besar akibat saluran air yang tersumbat sampah daun setelah hujan. Beberapa anak kelas 3 memilih bermain melempar batu ke dalam genangan itu hingga airnya menciprat ke baju teman lain. Di sisi lain, sekelompok siswa penggerak karakter memilih mengajak penjaga sekolah bersama-sama membersihkan sampah daun di saluran air tersebut.", q: "Pernyataan yang paling tepat untuk mengevaluasi tindakan kelompok siswa penggerak karakter tersebut adalah...", options: ["Tindakan mereka salah karena membersihkan saluran air adalah tugas penuh dari kepala sekolah", "Tindakan mereka kurang tepat karena seharusnya mereka ikut bermain lempar batu bersama teman-teman yang lain", "Tindakan mereka sangat tepat karena menyelesaikan akar masalah kebersihan lingkungan demi kesehatan dan kenyamanan bersama", "Tindakan mereka sia-sia karena genangan air akan hilang dengan sendirinya saat cuaca panas"], answer: "Tindakan mereka sangat tepat karena menyelesaikan akar masalah kebersihan lingkungan demi kesehatan dan kenyamanan bersama" },
+            { lvl: "Fase B", type: "single", stimulus: "Kamu melihat bahwa saat jam istirahat sekolah, hampir seluruh teman di kelas 4 memilih berdiam diri di bangku masing-masing untuk bermain game di ponsel mereka. Akibatnya, suasana kelas menjadi sunyi, individualis, dan tidak ada interaksi sosial antar-teman.", q: "Sebagai anak hebat yang peduli sesama, rancangan aksi nyata apa yang bisa kamu ciptakan untuk menarik perhatian teman-temanmu agar mau bergerak bersama di lapangan sekolah?", options: ["Melaporkan nama semua teman yang membawa ponsel kepada kepala sekolah agar diberikan hukuman berat", "Membuat grup obrolan baru di media sosial agar bisa mengobrol secara digital saat istirahat tiba", "Membawa tali karet atau bola dari rumah, lalu menantang teman-teman sekelas untuk bermain lompat tali atau bentengan bersama di lapangan", "Ikut duduk diam di kelas dan mengunduh aplikasi game yang sama agar bisa ikut bermain bersama mereka"], answer: "Membawa tali karet atau bola dari rumah, lalu menantang teman-teman sekelas untuk bermain lompat tali atau bentengan bersama di lapangan" },
+
+            // --- SOAL FASE C (KELAS 5-6 SD) ---
+            { lvl: "Fase C", type: "single", stimulus: "Bagas membiasakan diri bangun pukul 04.45 setiap pagi.", q: "Tindakan pertama yang paling mencerminkan kemandirian dan tanggung jawab Bagas setelah membuka mata adalah...", options: ["Langsung menyalakan televisi untuk menonton kartun", "Merapikan tempat tidur sendiri sebelum keluar kamar", "Berteriak memanggil orang tua untuk menyiapkan mandi", "Mengambil handphone untuk memeriksa pesan masuk"], answer: "Merapikan tempat tidur sendiri sebelum keluar kamar" },
+            { lvl: "Fase C", type: "single", stimulus: "Saat mengikuti kegiatan perkemahan Sabtu-Minggu (Persami) di sekolah,", q: "Praktik ibadah yang paling menunjukkan kesadaran spiritual mandiri sebagai anak hebat adalah...", options: ["Menunggu ditegur oleh guru pembina baru melaksanakan ibadah", "Ikut beribadah hanya jika diajak oleh teman dekat", "Segera menuju tempat ibadah tepat waktu atas keinginan sendiri", "Beribadah dengan terburu-buru agar bisa cepat kembali bermain"], answer: "Segera menuju tempat ibadah tepat waktu atas keinginan sendiri" },
+            { lvl: "Fase C", type: "single", stimulus: "Jika jarak rumahmu ke sekolah cukup dekat (sekitar 500 meter),", q: "Praktik olahraga harian yang paling mudah dan bermanfaat untuk diselipkan dalam rutinitas pagimu adalah...", options: ["Meminta orang tua mengantar dengan sepeda motor agar cepat sampai", "Berjalan kaki atau bersepeda santai menuju sekolah", "Berlari sekencang-kencangnya agar berkeringat berlebihan", "Menunggu bus sekolah di depan rumah sambil duduk"], answer: "Berjalan kaki atau bersepeda santai menuju sekolah" },
+            { lvl: "Fase C", type: "single", stimulus: "Saat jam istirahat, kamu melihat banyak jajanan di depan sekolah yang warnanya sangat mencolok dan dibungkus plastik terbuka.", q: "Praktik makan sehat yang sebaiknya kamu lakukan adalah...", options: ["Membelinya dalam jumlah banyak karena warnanya menarik", "Membeli jajanan tersebut karena harganya sangat murah", "Memilih makan bekal gizi seimbang yang dibawa dari rumah atau membeli di kantin sehat sekolah", "Tidak makan sama sekali dari pagi sampai pulang sekolah"], answer: "Memilih makan bekal gizi seimbang yang dibawa dari rumah atau membeli di kantin sehat sekolah" },
+            { lvl: "Fase C", type: "single", stimulus: "Saat kamu sedang membaca sebuah artikel atau buku cerita di kelas, kamu menemukan tiga kata sulit yang baru pertama kali kamu lihat.", q: "Tindakan nyata yang menunjukkan kamu gemar belajar adalah...", options: ["Mengabaikan kata-kata tersebut dan melanjutkan membaca seadanya", "Melipat halaman buku tersebut lalu menyimpannya di tas", "Mencari arti kata tersebut di kamus atau mencatatnya untuk ditanyakan kepada guru", "Menyuruh teman sekelas untuk mencari arti kata tersebut untukmu"], answer: "Mencari arti kata tersebut di kamus atau mencatatnya untuk ditanyakan kepada guru" },
+            { lvl: "Fase C", type: "single", stimulus: "Kamu melihat selokan di samping kelas tersumbat oleh daun-daun kering dan sampah plastik setelah hujan deras.", q: "Praktik bermasyarakat yang bertanggung jawab di lingkungan sekolah adalah...", options: ["Melaporkannya ke penjaga sekolah dan membiarkannya begitu saja", "Pindah bermain ke tempat lain agar baju tidak kotor", "Mengajak teman-teman sekelas untuk bergotong-royong membersihkannya bersama", "Melempar sampah baru ke selokan tersebut karena sudah terlanjur kotor"], answer: "Mengajak teman-teman sekelas untuk bergotong-royong membersihkannya bersama" },
+            { lvl: "Fase C", type: "single", stimulus: "Malam sudah menunjukkan pukul 21.00.", q: "Apa tindakan praktis yang paling tepat kamu lakukan untuk merawat kesehatan mata dan kesiapan fisik esok hari?", options: ["Mematikan lampu kamar tetapi tetap bermain game di handphone", "Menyalakan televisi di dalam kamar sebagai teman tidur", "Mematikan semua layar gawai, merapikan buku sekolah, dan langsung tidur", "Melanjutkan mengobrol dengan kakak sampai larut malam"], answer: "Mematikan semua layar gawai, merapikan buku sekolah, dan langsung tidur" },
+            { lvl: "Fase C", type: "single", stimulus: "Besok pagi sekolahmu akan mengadakan upacara peringatan hari besar pukul 07.00 dan kamu ditunjuk menjadi petugas upacara. Jarak rumahmu ke sekolah memerlukan waktu perjalanan 20 menit.", q: "Penerapan kebiasaan pagi yang paling tepat adalah...", options: ["Bangun pukul 06.30, mandi kilat, dan berangkat tanpa sarapan", "Bangun pukul 05.00, bermain game dulu, lalu berangkat pukul 06.50", "Bangun pukul 05.00, bersiap dengan tenang, sarapan sehat, dan tiba di sekolah pukul 06.30", "Datang tepat pukul 07.00 saat upacara baru dimulai agar tidak lelah menunggu"], answer: "Bangun pukul 05.00, bersiap dengan tenang, sarapan sehat, dan tiba di sekolah pukul 06.30" },
+            { lvl: "Fase C", type: "single", stimulus: "Kamu dan kelompokmu sedang mengerjakan proyek video di rumah salah satu teman yang berbeda agama. Ketika sore hari, temanmu yang punya rumah meminta izin untuk beribadah terlebih dahulu.", q: "Tindakan penerapan karakter yang paling baik dari kelompokmu adalah...", options: ["Mengajaknya tetap mengerjakan tugas karena tenggat waktu sudah dekat", "Mempersilakannya beribadah dengan tenang dan menunggu atau beristirahat tanpa membuat kegaduhan", "Meminta pulang ke rumah masing-masing dan membatalkan kerja kelompok", "Ikut masuk ke tempat ibadahnya meskipun tidak mengerti caranya"], answer: "Mempersilakannya beribadah dengan tenang dan menunggu atau beristirahat tanpa membuat kegaduhan" },
+            { lvl: "Fase C", type: "single", stimulus: "Hari ini dijadwalkan senam kebugaran jasmani di lapangan sekolah, tetapi tiba-tiba hujan deras turun mengguyur seluruh area olahraga.", q: "Penerapan aktivitas fisik yang kreatif agar kamu dan teman-temanmu tetap bergerak adalah...", options: ["Duduk di kelas sambil bermain media sosial di handphone", "Menggunakan ruang kelas untuk bermain bola sepak bersama teman", "Melakukan peregangan ringan dan senam lantai sederhana di dalam kelas secara tertib", "Meminta guru memulangkan siswa lebih cepat karena hujan"], answer: "Melakukan peregangan ringan dan senam lantai sederhana di dalam kelas secara tertib" },
+            { lvl: "Fase C", type: "single", stimulus: "Uang sakumu terbatas, tetapi kamu ingin makan siang yang memenuhi kebutuhan energi dan gizi di kantin sekolah.", q: "Kombinasi menu makanan yang paling tepat kamu pilih adalah...", options: ["Es sirop manis, gorengan dua buah, dan kerupuk", "Mie instan kuah double ditambah nasi putih hangat", "Nasi putih, satu potong ikan/tahu, sayur bening, dan air putih", "Minuman bersoda, nugget ayam goreng, dan kentang goreng stick"], answer: "Nasi putih, satu potong ikan/tahu, sayur bening, dan air putih" },
+            { lvl: "Fase C", type: "single", stimulus: "Kelompokmu mendapatkan tugas untuk membuat peta jalur perdagangan lokal di Kalimantan Timur, materi yang belum pernah dijelaskan secara detail oleh guru.", q: "Langkah penerapan gemar belajar yang paling efektif adalah...", options: ["Menunggu kelompok lain selesai membuat agar bisa meniru hasilnya", "Meminta guru mengganti tugas tersebut dengan tugas menulis biasa", "Mencari referensi di perpustakaan sekolah, memanfaatkan peta digital, dan berdiskusi membagi tugas kelompok", "Mengeluh kepada orang tua di rumah agar tugas tersebut dikerjakan oleh mereka"], answer: "Mencari referensi di perpustakaan sekolah, memanfaatkan peta digital, dan berdiskusi membagi tugas kelompok" },
+            { lvl: "Fase C", type: "single", stimulus: "Hari Minggu ini di lingkungan RT-mu diadakan kerja bakti membersihkan lingkungan, sementara kelompok belajarmu berencana bermain game bersama jam 09.00 pagi.", q: "Tindakan bermasyarakat yang menunjukkan kedewasaan sikapmu sebagai siswa kelas 6 adalah...", options: ["Pura-pura tidur di kamar agar tidak diajak orang tua ikut kerja bakti", "Mengikuti kerja bakti lingkungan terlebih dahulu pada pagi hari, lalu menjadwal ulang waktu bermain bersama teman", "Langsung pergi ke rumah teman sejak pukul 07.00 pagi untuk menghindari kerja bakti", "Menonton warga bekerja bakti dari teras rumah sambil makan camilan"], answer: "Mengikuti kerja bakti lingkungan terlebih dahulu pada pagi hari, lalu menjadwal ulang waktu bermain bersama teman" },
+            { lvl: "Fase C", type: "single", stimulus: "Teman-teman satu geng game online-mu mengajak untuk melakukan pertandingan bersama (mabar) pada pukul 21.30 malam. Padahal, ibumu sudah menetapkan aturan bebas gadget di area kamar tidur setelah jam 21.00.", q: "Tindakan yang sebaiknya kamu ambil adalah...", options: ["Tetap ikut bermain secara diam-diam di bawah selimut kamar agar tidak ketahuan ibu", "Memarahi ibu karena membuat aturan yang membatasi hobi bermainmu", "Menolak ajakan teman dengan sopan, menjelaskan aturan rumahmu, dan memilih untuk tidur cepat", "Bermain di kamar mandi agar tidak melanggar aturan kamar tidur bebas gadget"], answer: "Menolak ajakan teman dengan sopan, menjelaskan aturan rumahmu, dan memilih untuk tidur cepat" },
+            { lvl: "Fase C", type: "single", stimulus: "Perhatikan tabel jurnal aktivitas mingguan milik Doni berikut ini:\nSenin: Tidur 20.45, Makan Sehat, Belajar, Fokus.\nSelasa: Tidur 23.30, Junk food, Main game, Mengantuk.\nRabu: Tidur 21.00, Makan sehat, Bersepeda, Bugar.\nKamis: Tidur 23.45, Junk food, Nonton bola, Sulit konsentrasi.", q: "Berdasarkan analisis tabel di atas, masalah utama yang menyebabkan penurunan performa belajar dan ketidakstabilan emosi Doni di sekolah pada hari Selasa dan Kamis adalah...", options: ["Doni terlalu banyak belajar di hari Senin dan Rabu sehingga otaknya kelelahan", "Pelanggaran kebiasaan tidur cepat dan pola makan tidak sehat merusak kebugaran fisik dan daya konsentrasi Doni pada esok harinya", "Menu makanan kantin sekolah pada hari Selasa dan Kamis kurang enak bagi Doni", "Doni tidak menyukai mata pelajaran yang diajarkan pada hari Selasa dan Kamis"], answer: "Pelanggaran kebiasaan tidur cepat dan pola makan tidak sehat merusak kebugaran fisik dan daya konsentrasi Doni pada esok harinya" },
+            { lvl: "Fase C", type: "single", stimulus: "Skenario Kasus Ketua Kelas\nRiko ditunjuk menjadi ketua kelompok proyek IPAS di kelas 5. Dalam pembagian tugas membersihkan area praktik, Riko memberikan tugas menyapu dan mengepel lantai hanya kepada anggota perempuan. Sementara anggota laki-laki hanya ditugaskan membawa ember air sekali saja, setelah itu diperbolehkan bermain gawai. Akibatnya, anggota perempuan merasa kelelahan dan proyek selesai terlambat.", q: "Jika kamu mengevaluasi tindakan Riko berdasarkan prinsip kebiasaan \"Bermasyarakat\" yang baik di sekolah, pernyataan evaluasi yang paling tepat adalah...", options: ["Tindakan Riko sudah benar karena tugas berat menyapu lantai memang keahlian perempuan", "Tindakan Riko kurang tepat karena seharusnya semua anggota kelompok diperbolehkan bermain gawai bersama", "Tindakan Riko salah karena melanggar prinsip keadilan dan kesetaraan, di mana pembagian tanggung jawab kelompok harus adil tanpa diskriminasi gender", "Tindakan Riko sudah adil karena anggota laki-laki sudah mau membantu membawakan ember air yang berat"], answer: "Tindakan Riko salah karena melanggar prinsip keadilan dan kesetaraan, di mana pembagian tanggung jawab kelompok harus adil tanpa diskriminasi gender" },
+            { lvl: "Fase C", type: "single", stimulus: "Kamu membuat rekam jejak bekal makan siang buatanmu sendiri selama 3 hari:\nHari 1: Nasi goreng, telur dadar, kerupuk, tanpa sayur.\nHari 2: Nasi putih, mie instan goreng, nugget ayam, jus jeruk instan kemasan.\nHari 3: Nasi putih, pepes ikan, sayur bening bayam, dan potongan buah semangka.", q: "Jika kamu harus mengevaluasi mutu bekal harianmu berdasarkan prinsip \"Makan Sehat dan Bergizi Seimbang\", kesimpulan yang paling tepat adalah...", options: ["Bekal hari ke-2 adalah yang terbaik karena mengandung karbohidrat ganda yang mengenyangkan tubuh", "Bekal hari ke-1 dan ke-2 sudah sehat karena semuanya menggunakan lauk protein hewani", "Bekal hari ke-3 adalah satu-satunya yang memenuhi standar gizi lengkap dan seimbang karena memiliki porsi serat, vitamin, mineral, karbohidrat, dan protein yang pas", "Semua bekal dari hari ke-1 sampai ke-3 mutunya sama saja karena semuanya mengenyangkan perut"], answer: "Bekal hari ke-3 adalah satu-satunya yang memenuhi standar gizi lengkap dan seimbang karena memiliki porsi serat, vitamin, mineral, karbohidrat, dan protein yang pas" },
+            { lvl: "Fase C", type: "single", stimulus: "Rani adalah siswa kelas 6 yang memiliki hobi melakukan penyuntingan video (video editing) di komputer rumahnya. Akhir-akhir ini, Rani sering lupa waktu dan begadang hingga pukul 24.00 karena keasyikan mengedit, yang membuatnya sering terlambat bangun pagi dan mengantuk di kelas.", q: "Rancangan strategi atau langkah aksi konkret apa yang paling tepat dibuat oleh Rani agar hobinya tetap berjalan tanpa merusak kebiasaan tidur cepat dan bangun pagi?", options: ["Memutuskan untuk menghapus aplikasi edit video selamanya agar tidak tergoda lagi", "Melanjutkan mengedit video pada jam istirahat sekolah menggunakan laptop di kelas", "Membuat jadwal alarm \"Persiapan Tidur\" pada pukul 20.15, membatasi waktu mengedit maksimal 1 jam sepulang sekolah, dan mematikan komputer tepat pukul 20.30", "Mengedit video hanya pada hari Sabtu malam penuh hingga subuh agar hari sekolah tidak terganggu"], answer: "Membuat jadwal alarm \"Persiapan Tidur\" pada pukul 20.15, membatasi waktu mengedit maksimal 1 jam sepulang sekolah, dan mematikan komputer tepat pukul 20.30" },
+            { lvl: "Fase C", type: "single", stimulus: "Di kantin sekolahmu, setiap hari terjadi penumpukan sampah sisa makanan yang dibuang sembarangan oleh siswa kelas tinggi setelah selesai makan siang. Hal ini menyebabkan area kantin menjadi bau, kotor, dan banyak lalat.", q: "Berdasarkan analisis nilai tanggung jawab sosial (\"Bermasyarakat\"), tindakan nyata apa yang paling efektif dan mendidik yang bisa kamu lakukan sebagai pengurus kelas?", options: ["Memarahi setiap siswa yang terlihat menyisakan makanan di piring mereka", "Meminta penjaga sekolah membersihkan area kantin lebih sering setiap jam istirahat", "Mengampanyekan gerakan mengambil porsi makanan sesuai kebutuhan, menyediakan tempat sampah terpisah, dan membuat piket pengawas kantin bersama teman-teman", "Menyarankan kepala sekolah menutup kantin agar tidak ada sampah makanan lagi"], answer: "Mengampanyekan gerakan mengambil porsi makanan sesuai kebutuhan, menyediakan tempat sampah terpisah, dan membuat piket pengawas kantin bersama teman-teman" },
+            { lvl: "Fase C", type: "single", stimulus: "Guru melaporkan bahwa saat jam istirahat sekolah, sebagian besar siswa kelas 5 dan 6 memilih berdiam diri di dalam kelas untuk bermain game di gawai masing-masing, sehingga interaksi sosial antar-teman menjadi sangat kurang dan suasana kelas menjadi individualis.", q: "Sebagai bagian dari komunitas sekolah yang hebat, rancangan aktivitas kreatif apa yang bisa kamu ciptakan untuk menarik teman-temanmu keluar dari layar gawai dan bergerak bersama?", options: ["Melaporkan teman-teman yang bermain gawai kepada guru agar gawai mereka disita sekolah", "Membuat grup obrolan baru di media sosial agar teman-teman bisa berkomunikasi secara digital", "Mengkreasi turnamen mingguan permainan tradisional (seperti Gobak Sodor atau Bentengan) antar-kelas saat jam istirahat dengan sistem lencana penghargaan kelompok", "Membiarkan saja kebiasaan tersebut karena bermain game online juga bisa melatih kerja tim secara digital"], answer: "Mengkreasi turnamen mingguan permainan tradisional (seperti Gobak Sodor atau Bentengan) antar-kelas saat jam istirahat dengan sistem lencana penghargaan kelompok" }
+        ];
+
+        let filteredQuizzes = [];
+
+        // --- GLOBAL STATE ---
+        let startConfig = { players: 1, jenjang: 'Fase A', names: [], duration: 0 };
+        let globalState = {
+            players: [],
+            timeRemaining: 0,
+            timerInterval: null,
+            isGameOver: false
+        };
+
+        // UI Update Lobby
+        function updatePlayerNames() {
+            const num = parseInt(document.getElementById('select-players').value);
+            const container = document.getElementById('names-container');
+            container.innerHTML = '';
+            for(let i = 0; i < num; i++) {
+                container.innerHTML += `<input type="text" id="nameInput-${i}" value="Pemain ${i+1}" class="bg-slate-50 border-2 border-slate-200 p-3 rounded-xl w-full font-bold text-slate-700 outline-none focus:border-blue-500 transition mb-2">`;
+            }
+        }
+
+        let isMuted = false;
+        
+        function playSound(id) {
+            if (isMuted) return;
+            const audio = document.getElementById(`sfx-${id}`);
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(e => console.log("Audio play error:", e));
+            }
+        }
+
+        function startGame() {
+            startConfig.players = parseInt(document.getElementById('select-players').value);
+            startConfig.jenjang = document.getElementById('select-jenjang').value;
+            startConfig.duration = parseInt(document.getElementById('select-duration').value);
+            startConfig.names = [];
+            for(let i = 0; i < startConfig.players; i++) {
+                startConfig.names.push(document.getElementById(`nameInput-${i}`).value || `Pemain ${i+1}`);
+            }
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            
+            // Filter SOAL berdasarkan Fase
+            filteredQuizzes = ALL_QUIZZES.filter(q => q.lvl === startConfig.jenjang);
+            
+            const bgm = document.getElementById('bgm-audio');
+            bgm.volume = 0.5;
+            bgm.play().catch(e => console.log(e));
+            
+            initializeGameData();
+        }
+
+        function toggleMute() {
+            const bgm = document.getElementById('bgm-audio');
+            isMuted = !isMuted;
+            bgm.muted = isMuted;
+            
+            const muteBtns = document.querySelectorAll('.btn-mute-class');
+            const sliders = document.querySelectorAll('.bgm-volume-class');
+            
+            muteBtns.forEach(btn => btn.innerText = isMuted ? '🔇' : '🔊');
+            
+            sliders.forEach(slider => {
+                if (isMuted) slider.classList.add('opacity-50');
+                else slider.classList.remove('opacity-50');
+            });
+            
+            if (!isMuted) bgm.play().catch(e => console.log(e));
+        }
+
+        function changeVolume(val) {
+            const bgm = document.getElementById('bgm-audio');
+            bgm.volume = parseFloat(val);
+            
+            const sfxVolume = Math.min(1, parseFloat(val) + 0.3);
+            ['sfx-correct', 'sfx-wrong', 'sfx-merge', 'sfx-coin'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.volume = sfxVolume;
+            });
+            
+            const sliders = document.querySelectorAll('.bgm-volume-class');
+            sliders.forEach(slider => slider.value = val);
+            
+            if (val > 0 && isMuted) {
+                toggleMute();
+            }
+        }
+
+        function goHome() {
+            showModalConfirm('Kembali ke Home', 'Apakah kamu yakin ingin kembali ke menu utama? Semua progres saat ini akan hilang.', () => {
+                location.reload();
+            });
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        function openPanduan() { document.getElementById('modal-panduan').classList.remove('hidden'); }
+        function closePanduan() { document.getElementById('modal-panduan').classList.add('hidden'); }
+
+        let confirmAction = null;
+        function showModalConfirm(title, text, action) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-text').innerText = text;
+            confirmAction = action;
+            document.getElementById('modal-confirm').classList.remove('hidden');
+        }
+        function closeConfirmModal() {
+            document.getElementById('modal-confirm').classList.add('hidden');
+            confirmAction = null;
+        }
+        document.getElementById('btn-confirm-yes').addEventListener('click', () => {
+            if (confirmAction) confirmAction();
+            closeConfirmModal();
+        });
+
+        // --- GAME INITIALIZATION ---
+        function initializeGameData() {
+            globalState.players = [];
+            globalState.isGameOver = false;
+
+            for(let i = 0; i < startConfig.players; i++) {
+                globalState.players.push({
+                    index: i,
+                    name: startConfig.names[i],
+                    level: 1,
+                    maxOrders: 3,
+                    energy: 20, 
+                    maxEnergy: 100,
+                    coins: 0,
+                    boardData: new Array(16).fill(null), 
+                    orders: [],
+                    hasWon: false
+                });
+            }
+
+            const mainContainer = document.getElementById('main-container');
+            mainContainer.className = `flex-1 w-full h-full p-2 grid gap-2 overflow-hidden z-10 relative pt-16 grid-layout-${startConfig.players}`;
+            mainContainer.innerHTML = globalState.players.map(p => generatePlayerUI(p)).join('');
+
+            globalState.players.forEach(p => {
+                setupInitialBoard(p.index);
+                replenishOrders(p.index);
+                renderBoard(p.index);
+                updateUI(p.index);
+            });
+            
+            if (startConfig.duration > 0) {
+                document.getElementById('global-bar').classList.remove('hidden');
+                globalState.timeRemaining = startConfig.duration * 60;
+                updateTimerUI();
+                globalState.timerInterval = setInterval(() => {
+                    globalState.timeRemaining--;
+                    updateTimerUI();
+                    if (globalState.timeRemaining <= 0) endGameByTime();
+                }, 1000);
+            }
+        }
+
+        function generatePlayerUI(p) {
+            return `
+                <div id="quadrant-${p.index}" class="player-quadrant flex flex-col h-full bg-white/50 backdrop-blur-sm rounded-2xl border-4 border-slate-300 shadow-lg relative overflow-hidden" data-player="${p.index}">
+                    
+                    <div id="quiz-container-${p.index}" class="absolute inset-0 z-50 hidden"></div>
+
+                    <!-- HEADER PEMAIN & KONTROL GLOBAL DI TENGAH -->
+                    <div class="bg-white/95 p-1.5 md:p-2 border-b-2 border-slate-200 flex justify-between items-center shrink-0 z-10 h-14 md:h-16">
+                        
+                        <!-- Kiri: Info Pemain -->
+                        <div class="flex flex-col ml-1 flex-1 items-start">
+                            <span class="font-bold text-sm md:text-lg text-indigo-800 leading-tight">${p.name}</span>
+                            <span id="p${p.index}-level" class="text-[10px] md:text-xs font-bold bg-indigo-500 text-white px-2 py-0.5 rounded-full w-max">LVL ${p.level}</span>
+                        </div>
+                        
+                        <!-- Tengah: Kontrol Global (Hanya ditaruh di Pemain 1 agar tidak ganda di layar) -->
+                        <div class="flex-1 flex justify-center items-center shrink-0">
+                            ${p.index === 0 ? `
+                            <div class="flex items-center gap-1 md:gap-3 bg-slate-100 px-3 py-1 rounded-full border border-slate-300 shadow-inner scale-90 md:scale-100">
+                                <div class="flex items-center gap-1">
+                                    <button onclick="toggleMute()" class="btn-mute-class w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition active:scale-95 text-lg" title="Mute/Unmute">🔊</button>
+                                    <input type="range" min="0" max="1" step="0.05" value="0.5" class="bgm-volume-class w-16 md:w-24 accent-blue-500 cursor-pointer" oninput="changeVolume(this.value)" title="Volume Musik">
+                                </div>
+                                <div class="w-px h-5 bg-slate-300"></div>
+                                <button onclick="goHome()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition active:scale-95 text-lg" title="Kembali ke Menu (Home)">🏠</button>
+                                <button onclick="toggleFullscreen()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition active:scale-95 text-lg group" title="Layar Penuh">📺</button>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Kanan: Koin & Energi -->
+                        <div class="flex gap-1 md:gap-2 items-center justify-end flex-1">
+                            <div class="flex items-center bg-yellow-100 px-2 py-1 rounded-full shadow-inner border border-yellow-200 h-max">
+                                <img src="https://i.imgur.com/fNuQRvo.png" class="w-5 h-5 md:w-6 md:h-6 mr-1"><span id="p${p.index}-coins" class="font-bold text-yellow-700 text-base md:text-xl">${p.coins}</span>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <div class="flex items-center bg-green-100 px-2 py-1 rounded-full shadow-inner border border-green-200 h-max">
+                                    <img src="https://i.imgur.com/Twygeyp.png" class="w-5 h-5 md:w-6 md:h-6 mr-1"><span id="p${p.index}-energy" class="font-bold text-green-700 text-base md:text-xl">${p.energy}</span>
+                                </div>
+                                <button onclick="openQuizModal(${p.index})" class="text-[9px] md:text-[10px] font-bold bg-green-500 text-white px-2 py-0.5 rounded-full mt-1 hover:bg-green-600 active:scale-95 transition tracking-wider w-full shadow-sm">KUMPULKAN ENERGI</button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div id="p${p.index}-orders" class="flex gap-2 p-2 overflow-x-auto min-h-[90px] md:min-h-[110px] shrink-0 bg-indigo-50/60 items-center justify-start border-b border-indigo-100 z-10">
+                    </div>
+
+                    <div class="flex-1 p-1 md:p-2 flex justify-center items-center overflow-hidden z-10">
+                        <div id="p${p.index}-board" class="grid gap-1.5 w-full h-full max-h-full aspect-square mx-auto max-w-lg" style="grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr));">
+                        </div>
+                    </div>
+
+                    <div class="bg-white/95 p-2 md:p-3 flex justify-between items-stretch shrink-0 border-t-2 border-slate-200 z-10 gap-3 h-20 md:h-24">
+                        <button id="p${p.index}-gen-btn" onclick="useGenerator(${p.index})" class="flex-1 bg-orange-400 hover:bg-orange-500 text-white font-bold py-1 px-2 rounded-xl shadow-md border-2 border-orange-300 active:scale-95 flex items-center justify-center gap-2 transition">
+                            <img src="https://i.imgur.com/gwhNpoG.png" class="w-10 h-10 md:w-12 md:h-12 object-contain">
+                            <div class="flex flex-col text-left leading-none">
+                                <span class="text-lg md:text-xl tracking-wide uppercase">Belanja</span>
+                                <span class="text-xs md:text-sm bg-orange-600 px-1.5 rounded inline-block w-max mt-1">-5 ENERGI</span>
+                            </div>
+                        </button>
+
+                        <div id="p${p.index}-trash" class="trash-bin flex-none w-20 md:w-24 bg-red-100 rounded-xl border-2 border-red-300 flex flex-col justify-center items-center text-red-500 shadow-inner">
+                            <span class="text-2xl md:text-3xl">🗑️</span>
+                            <span class="text-[9px] md:text-xs font-bold mt-1 text-red-600">BUANG</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setupInitialBoard(pIndex) {
+            const p = globalState.players[pIndex];
+            const dustyPositions = [0, 3, 12, 15];
+            dustyPositions.forEach((pos, idx) => {
+                if(pos < p.boardData.length) {
+                    const randomBase = BASE_ITEMS[idx % BASE_ITEMS.length];
+                    p.boardData[pos] = { ...randomBase, isDusty: true };
+                }
+            });
+            p.boardData[5] = { ...CHAINS.roti[0], isDusty: false };
+            p.boardData[6] = { ...CHAINS.roti[0], isDusty: false };
+        }
+
+        function updateUI(pIndex) {
+            const p = globalState.players[pIndex];
+            document.getElementById(`p${pIndex}-energy`).innerText = p.energy;
+            document.getElementById(`p${pIndex}-coins`).innerText = p.coins;
+            document.getElementById(`p${pIndex}-level`).innerText = `LVL ${p.level > 5 ? 5 : p.level}`;
+            
+            const genBtn = document.getElementById(`p${pIndex}-gen-btn`);
+            if (p.energy < 5) genBtn.classList.add('grayscale', 'opacity-70');
+            else genBtn.classList.remove('grayscale', 'opacity-70');
+        }
+
+        function useGenerator(pIndex) {
+            if (globalState.isGameOver) return;
+            const p = globalState.players[pIndex];
+            
+            if (p.energy < 5) {
+                openQuizModal(pIndex);
+                return;
+            }
+
+            const emptySlots = [];
+            p.boardData.forEach((item, idx) => { if (item === null) emptySlots.push(idx); });
+
+            if (emptySlots.length === 0) {
+                const btn = document.getElementById(`p${pIndex}-gen-btn`);
+                btn.classList.add('animate-shake');
+                setTimeout(() => btn.classList.remove('animate-shake'), 300);
+                return;
+            }
+
+            p.energy -= 5;
+            const randomSlot = emptySlots[Math.floor(Math.random() * emptySlots.length)];
+            
+            let randomItem = null;
+            
+            // 1. Peluang 30% memunculkan BAHAN DASAR (Level 1) yang sesuai dengan pesanan karakter
+            if (Math.random() < 0.30) {
+                const neededChains = [];
+                p.orders.forEach(order => {
+                    order.items.forEach(item => {
+                        if (!item.isFulfilled) {
+                            const chainName = item.reqId.split('_')[0];
+                            neededChains.push(chainName);
+                        }
+                    });
+                });
+                
+                if (neededChains.length > 0) {
+                    const pickedChain = neededChains[Math.floor(Math.random() * neededChains.length)];
+                    randomItem = CHAINS[pickedChain].find(i => i.level === 1);
+                }
+            }
+            
+            // 2. Jika bukan pesanan karakter, probabilitas merata (0,2) untuk semua bahan dasar
+            if (!randomItem) {
+                const rand = Math.random(); 
+                if (rand < 0.2) randomItem = CHAINS.roti[0];
+                else if (rand < 0.4) randomItem = CHAINS.jeruk[0];
+                else if (rand < 0.6) randomItem = CHAINS.daging[0];
+                else if (rand < 0.8) randomItem = CHAINS.nasi[0];
+                else randomItem = CHAINS.air[0];
+            }
+            
+            p.boardData[randomSlot] = { ...randomItem, isDusty: false };
+            
+            renderBoard(pIndex);
+            updateUI(pIndex);
+
+            if (p.energy < 5) {
+                setTimeout(() => openQuizModal(pIndex), 500);
+            }
+        }
+
+        function checkLevelProgression(pIndex) {
+            const p = globalState.players[pIndex];
+            if (p.hasWon || globalState.isGameOver) return;
+
+            let levelUp = false;
+
+            if (p.coins >= 600 && p.level < 6) {
+                p.level = 6;
+                p.hasWon = true;
+                declareWinner(p);
+                return;
+            } else if (p.coins >= 400 && p.level < 5) {
+                p.level = 5; p.maxOrders = 5; levelUp = true;
+            } else if (p.coins >= 300 && p.level < 4) {
+                p.level = 4; p.maxOrders = 5; levelUp = true;
+            } else if (p.coins >= 200 && p.level < 3) {
+                p.level = 3; p.maxOrders = 3; levelUp = true;
+            } else if (p.coins >= 100 && p.level < 2) {
+                p.level = 2; p.maxOrders = 3; levelUp = true;
+            }
+
+            if (levelUp) {
+                replenishOrders(pIndex);
+                showLevelUpAnim(pIndex, p.level);
+            }
+        }
+
+        function showLevelUpAnim(pIndex, newLevel) {
+            const quad = document.getElementById(`quadrant-${pIndex}`);
+            if (!quad) return;
+
+            playSound('correct');
+
+            const popup = document.createElement('div');
+            popup.className = 'absolute inset-0 z-[100] flex justify-center items-center pointer-events-none bg-white/40 backdrop-blur-sm animate-pop';
+            popup.innerHTML = `
+                <div class="bg-gradient-to-br from-yellow-400 to-orange-500 text-white p-6 md:p-8 rounded-3xl shadow-2xl border-4 border-white text-center flex flex-col items-center">
+                    <span class="text-6xl mb-2">🎉</span>
+                    <h2 class="text-3xl md:text-4xl font-black mb-1 drop-shadow-md">SELAMAT!</h2>
+                    <p class="text-lg md:text-xl font-bold bg-black/20 px-4 py-2 rounded-full mt-2">Naik ke Level ${newLevel}</p>
+                </div>
+            `;
+            quad.appendChild(popup);
+
+            setTimeout(() => {
+                popup.style.opacity = '0';
+                popup.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => popup.remove(), 500);
+            }, 2500);
+        }
+
+        // --- ORDERS ---
+        function replenishOrders(pIndex) {
+            const p = globalState.players[pIndex];
+            while (p.orders.length < p.maxOrders) {
+                generateSingleOrder(pIndex);
+            }
+        }
+
+        function generateSingleOrder(pIndex) {
+            const p = globalState.players[pIndex];
+            let itemsCount = p.level === 1 ? 1 : 2;
+            let allowedLevels = [1, 2];
+            
+            if (p.level >= 3) {
+                allowedLevels = [2, 3];
+            }
+
+            const items = [];
+            for (let i = 0; i < itemsCount; i++) {
+                const chainNames = Object.keys(CHAINS);
+                const randomChain = chainNames[Math.floor(Math.random() * chainNames.length)];
+                const lvl = allowedLevels[Math.floor(Math.random() * allowedLevels.length)];
+                const requestedItem = CHAINS[randomChain].find(itm => itm.level === lvl);
+                items.push({
+                    reqId: requestedItem.id,
+                    reqImg: requestedItem.img,
+                    reward: lvl === 1 ? 5 : (lvl === 2 ? 15 : 40),
+                    isFulfilled: false
+                });
+            }
+
+            const avatars = ["https://i.imgur.com/VWV0nLj.png", "https://i.imgur.com/D1tEgEG.png", "https://i.imgur.com/OxAnopf.png", "https://i.imgur.com/CJMtN5w.png", "https://i.imgur.com/PvETFZH.png", "https://i.imgur.com/qiwyHIK.png"];
+            p.orders.push({
+                id: Date.now() + Math.random(),
+                avatar: avatars[Math.floor(Math.random() * avatars.length)],
+                items: items
+            });
+
+            renderOrders(pIndex);
+        }
+
+        function renderOrders(pIndex) {
+            const p = globalState.players[pIndex];
+            const container = document.getElementById(`p${pIndex}-orders`);
+            container.innerHTML = '';
+            
+            p.orders.forEach((order, idx) => {
+                const el = document.createElement('div');
+                el.className = 'order-card bg-white border-2 border-indigo-100 p-2 md:p-3 rounded-2xl shadow-sm flex items-center gap-2 md:gap-3 animate-pop cursor-default shrink-0 min-w-max';
+                el.dataset.orderindex = idx;
+                
+                let itemsHtml = '';
+                order.items.forEach(item => {
+                    if (item.isFulfilled) {
+                        itemsHtml += `
+                            <div class="relative w-10 h-10 md:w-12 md:h-12 opacity-30 grayscale shrink-0">
+                                <img src="${item.reqImg}" class="w-full h-full object-contain">
+                                <div class="absolute inset-0 flex justify-center items-center text-green-600 text-3xl md:text-4xl font-black z-10">✓</div>
+                            </div>
+                        `;
+                    } else {
+                        itemsHtml += `
+                            <div class="flex flex-col items-center shrink-0">
+                                <img src="${item.reqImg}" class="w-10 h-10 md:w-12 md:h-12 object-contain drop-shadow-sm mb-1">
+                                <div class="flex items-center text-green-700 font-bold text-xs md:text-sm bg-green-100 px-1.5 rounded-md border border-green-200 leading-none py-1">
+                                    ${item.reward} <img src="https://i.imgur.com/fNuQRvo.png" class="w-4 h-4 ml-0.5">
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                el.innerHTML = `
+                    <div class="w-12 h-12 md:w-14 md:h-14 bg-indigo-50 rounded-full border border-indigo-100 overflow-hidden flex items-center justify-center shrink-0">
+                        <img src="${order.avatar}" class="w-10 h-10 md:w-12 md:h-12 object-contain">
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        ${itemsHtml}
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        // --- RENDERING BOARD ---
+        function renderBoard(pIndex) {
+            const p = globalState.players[pIndex];
+            const boardEl = document.getElementById(`p${pIndex}-board`);
+            boardEl.innerHTML = '';
+            
+            for (let i = 0; i < p.boardData.length; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell w-full h-full';
+                cell.dataset.index = i;
+                
+                const itemData = p.boardData[i];
+                if (itemData) {
+                    const el = document.createElement('div');
+                    el.className = `game-item animate-pop ${itemData.isDusty ? 'dusty' : ''}`;
+                    el.innerHTML = `<img src="${itemData.img}" class="w-[85%] h-[85%] object-contain pointer-events-none">`;
+                    el.style.backgroundColor = itemData.color;
+                    el.dataset.index = i;
+                    el.dataset.id = itemData.id;
+                    el.dataset.level = itemData.level;
+                    if (!itemData.isDusty) {
+                        el.addEventListener('pointerdown', handlePointerDown);
+                    }
+                    cell.appendChild(el);
+                }
+                boardEl.appendChild(cell);
+            }
+        }
+
+        // --- MULTI-TOUCH ENGINE ---
+        const pointers = new Map();
+
+        function handlePointerDown(e) {
+            if (globalState.isGameOver) return;
+            if (e.button !== undefined && e.button !== 0) return; 
+            
+            const quadrant = e.currentTarget.closest('.player-quadrant');
+            const playerIndex = parseInt(quadrant.dataset.player);
+            const sourceIndex = parseInt(e.currentTarget.dataset.index);
+
+            const originalEl = e.currentTarget;
+            const cloneEl = originalEl.cloneNode(true);
+            const rect = originalEl.getBoundingClientRect();
+            
+            const offsetX = e.clientX - rect.left;
+            const offsetY = e.clientY - rect.top;
+
+            cloneEl.style.position = 'fixed';
+            cloneEl.style.zIndex = '1000';
+            cloneEl.style.width = `${rect.width}px`;
+            cloneEl.style.height = `${rect.height}px`;
+            cloneEl.style.transition = 'none'; 
+            cloneEl.style.left = `${e.clientX - offsetX}px`;
+            cloneEl.style.top = `${e.clientY - offsetY}px`;
+            
+            document.body.appendChild(cloneEl);
+            originalEl.style.opacity = '0'; 
+
+            pointers.set(e.pointerId, {
+                cloneEl: cloneEl,
+                originalEl: originalEl,
+                playerIndex: playerIndex,
+                sourceIndex: sourceIndex,
+                offsetX: offsetX,
+                offsetY: offsetY,
+                highlightedCell: null,
+                highlightedOrder: null,
+                highlightedTrash: null
+            });
+
+            document.addEventListener('pointermove', handlePointerMove);
+            document.addEventListener('pointerup', handlePointerUp);
+            document.addEventListener('pointercancel', handlePointerUp);
+        }
+
+        function handlePointerMove(e) {
+            const ptr = pointers.get(e.pointerId);
+            if (!ptr) return;
+            e.preventDefault(); 
+
+            ptr.cloneEl.style.left = `${e.clientX - ptr.offsetX}px`;
+            ptr.cloneEl.style.top = `${e.clientY - ptr.offsetY}px`;
+
+            ptr.cloneEl.style.display = 'none';
+            const elUnder = document.elementFromPoint(e.clientX, e.clientY);
+            ptr.cloneEl.style.display = 'flex';
+
+            const targetQuadrant = elUnder ? elUnder.closest('.player-quadrant') : null;
+            let newHighlightedCell = null;
+            let newHighlightedOrder = null;
+            let newHighlightedTrash = null;
+
+            if (targetQuadrant && parseInt(targetQuadrant.dataset.player) === ptr.playerIndex) {
+                newHighlightedCell = elUnder.closest('.grid-cell');
+                newHighlightedOrder = elUnder.closest('.order-card');
+                newHighlightedTrash = elUnder.closest('.trash-bin');
+            }
+            
+            if (ptr.highlightedCell !== newHighlightedCell) {
+                if (ptr.highlightedCell) ptr.highlightedCell.classList.remove('highlight');
+                if (newHighlightedCell) newHighlightedCell.classList.add('highlight');
+                ptr.highlightedCell = newHighlightedCell;
+            }
+
+            if (ptr.highlightedOrder !== newHighlightedOrder) {
+                if (ptr.highlightedOrder) ptr.highlightedOrder.classList.remove('highlight-order');
+                if (newHighlightedOrder) newHighlightedOrder.classList.add('highlight-order');
+                ptr.highlightedOrder = newHighlightedOrder;
+            }
+
+            if (ptr.highlightedTrash !== newHighlightedTrash) {
+                if (ptr.highlightedTrash) ptr.highlightedTrash.classList.remove('highlight-trash');
+                if (newHighlightedTrash) newHighlightedTrash.classList.add('highlight-trash');
+                ptr.highlightedTrash = newHighlightedTrash;
+            }
+        }
+
+        function handlePointerUp(e) {
+            const ptr = pointers.get(e.pointerId);
+            if (!ptr) return;
+
+            if (ptr.highlightedCell) ptr.highlightedCell.classList.remove('highlight');
+            if (ptr.highlightedOrder) ptr.highlightedOrder.classList.remove('highlight-order');
+            if (ptr.highlightedTrash) ptr.highlightedTrash.classList.remove('highlight-trash');
+
+            ptr.cloneEl.style.display = 'none';
+            const elUnder = document.elementFromPoint(e.clientX, e.clientY);
+            ptr.cloneEl.style.display = 'flex';
+
+            const targetQuadrant = elUnder ? elUnder.closest('.player-quadrant') : null;
+            const p = globalState.players[ptr.playerIndex];
+
+            let actionTaken = false;
+
+            if (targetQuadrant && parseInt(targetQuadrant.dataset.player) === ptr.playerIndex) {
+                const targetOrder = elUnder.closest('.order-card');
+                const targetCell = elUnder.closest('.grid-cell');
+                const targetTrash = elUnder.closest('.trash-bin');
+
+                if (targetOrder) {
+                    const orderIndex = parseInt(targetOrder.dataset.orderindex);
+                    const sourceData = p.boardData[ptr.sourceIndex];
+                    const order = p.orders[orderIndex];
+                    
+                    const matchExists = order.items.some(i => i.reqId === sourceData.id && !i.isFulfilled);
+                    if (matchExists) {
+                        fulfillOrderItem(ptr.playerIndex, orderIndex, ptr.sourceIndex, e.clientX, e.clientY);
+                        actionTaken = true;
+                    }
+                } 
+                else if (targetCell) {
+                    const targetIndex = parseInt(targetCell.dataset.index);
+                    if (ptr.sourceIndex !== targetIndex) {
+                        processDrop(ptr.playerIndex, ptr.sourceIndex, targetIndex);
+                        actionTaken = true;
+                    }
+                }
+                else if (targetTrash) {
+                    p.boardData[ptr.sourceIndex] = null;
+                    renderBoard(ptr.playerIndex);
+                    actionTaken = true;
+                    playSound('wrong'); 
+                }
+            } 
+
+            if (!actionTaken) {
+                ptr.originalEl.style.opacity = '1'; 
+            }
+
+            ptr.cloneEl.remove();
+            pointers.delete(e.pointerId);
+
+            if (pointers.size === 0) {
+                document.removeEventListener('pointermove', handlePointerMove);
+                document.removeEventListener('pointerup', handlePointerUp);
+                document.removeEventListener('pointercancel', handlePointerUp);
+            }
+        }
+
+        function processDrop(pIndex, sourceIdx, targetIdx) {
+            const p = globalState.players[pIndex];
+            const sourceData = p.boardData[sourceIdx];
+            const targetData = p.boardData[targetIdx];
+
+            if (!targetData) {
+                p.boardData[targetIdx] = sourceData;
+                p.boardData[sourceIdx] = null;
+            } else {
+                if (sourceData.id === targetData.id && sourceData.level < 3) {
+                    const chainName = sourceData.id.split('_')[0];
+                    const nextLevelData = CHAINS[chainName].find(item => item.level === sourceData.level + 1);
+                    if (nextLevelData) {
+                        p.boardData[targetIdx] = { ...nextLevelData, isDusty: false };
+                        p.boardData[sourceIdx] = null;
+                        playSound('merge'); 
+                    }
+                } else if (!targetData.isDusty) {
+                    p.boardData[targetIdx] = sourceData;
+                    p.boardData[sourceIdx] = targetData;
+                }
+            }
+            renderBoard(pIndex);
+        }
+
+        function fulfillOrderItem(pIndex, orderIndex, cellIndex, mouseX, mouseY) {
+            const p = globalState.players[pIndex];
+            const order = p.orders[orderIndex];
+            const sourceData = p.boardData[cellIndex];
+            
+            const itemIndex = order.items.findIndex(i => i.reqId === sourceData.id && !i.isFulfilled);
+            if(itemIndex !== -1) {
+                const item = order.items[itemIndex];
+                item.isFulfilled = true;
+                
+                playSound('coin');
+                p.coins += item.reward;
+                showFloatingReward(`+${item.reward}`, mouseX, mouseY);
+                p.boardData[cellIndex] = null;
+                
+                const allFulfilled = order.items.every(i => i.isFulfilled);
+                if (allFulfilled) {
+                    p.orders.splice(orderIndex, 1);
+                    setTimeout(() => replenishOrders(pIndex), 400);
+                }
+                
+                checkLevelProgression(pIndex);
+                updateUI(pIndex);
+                renderBoard(pIndex); 
+                renderOrders(pIndex);
+            }
+        }
+
+        function showFloatingReward(text, x, y) {
+            const rewardEl = document.createElement('div');
+            rewardEl.className = 'animate-reward flex items-center justify-center';
+            rewardEl.innerHTML = `${text} <img src="https://i.imgur.com/fNuQRvo.png" class="w-8 h-8 ml-1">`;
+            rewardEl.style.left = `${x - 20}px`;
+            rewardEl.style.top = `${y - 30}px`;
+            document.body.appendChild(rewardEl);
+            setTimeout(() => rewardEl.remove(), 1000);
+        }
+
+        // --- TIMER & WIN LOGIC ---
+        function updateTimerUI() {
+            const m = Math.floor(globalState.timeRemaining / 60).toString().padStart(2, '0');
+            const s = (globalState.timeRemaining % 60).toString().padStart(2, '0');
+            document.getElementById('timer-text').innerText = `${m}:${s}`;
+        }
+
+        function endGameByTime() {
+            clearInterval(globalState.timerInterval);
+            globalState.isGameOver = true;
+            
+            let winner = globalState.players[0];
+            globalState.players.forEach(p => { if (p.coins > winner.coins) winner = p; });
+            
+            showModal('Waktu Habis! ⏰', `Permainan selesai! Pemenangnya adalah ${winner.name} dengan ${winner.coins} Uang Kertas!`);
+        }
+
+        function declareWinner(p) {
+            clearInterval(globalState.timerInterval);
+            globalState.isGameOver = true;
+            showModal('🏆 Luar Biasa, Menang! 🏆', `Selamat ${p.name}! Kamu telah mencapai 600 Uang Kertas dan berhasil mengelola Dapur dengan sempurna!`);
+        }
+
+        // --- QUIZ LOGIC PER PLAYER (SPLIT-SCREEN ANBK) ---
+        function openQuizModal(pIndex) {
+            if (globalState.isGameOver) return;
+            const p = globalState.players[pIndex];
+            
+            const container = document.getElementById(`quiz-container-${pIndex}`);
+            const tpl = document.getElementById('modal-quiz-template').cloneNode(true);
+            tpl.id = `modal-quiz-active-${pIndex}`;
+            tpl.classList.remove('hidden');
+            
+            if (filteredQuizzes.length === 0) filteredQuizzes = ALL_QUIZZES; 
+            const quiz = filteredQuizzes[Math.floor(Math.random() * filteredQuizzes.length)];
+            
+            // Extract stimulus and question (kompatibel untuk data lama & baru)
+            let stimulusText = quiz.stimulus || "";
+            let questionText = quiz.q || "";
+            
+            if (!quiz.stimulus && quiz.q && quiz.q.includes('\n\n')) {
+                const parts = quiz.q.split('\n\n');
+                stimulusText = parts[0];
+                questionText = parts.slice(1).join('\n\n');
+            } else if (!quiz.stimulus) {
+                questionText = quiz.q;
+            }
+
+            tpl.querySelector('.quiz-stimulus').innerText = stimulusText;
+            tpl.querySelector('.quiz-question').innerText = questionText;
+            const optContainer = tpl.querySelector('.quiz-options');
+            optContainer.innerHTML = '';
+            
+            // Atur lebar jika tidak ada stimulus sama sekali
+            if (stimulusText.trim() === "") {
+                tpl.querySelector('.quiz-stimulus').parentElement.classList.add('hidden');
+                tpl.querySelector('.quiz-question').parentElement.classList.remove('md:w-[55%]');
+                tpl.querySelector('.quiz-question').parentElement.classList.add('w-full');
+            }
+
+            if (quiz.type === 'complex') {
+                // UI Checkbox ANBK
+                quiz.options.forEach((opt, idx) => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center gap-4 bg-slate-50 hover:bg-blue-50 border-2 border-slate-200 hover:border-blue-300 p-3 md:p-4 rounded-xl cursor-pointer transition text-left group';
+                    label.innerHTML = `
+                        <div class="shrink-0 w-6 h-6 border-2 border-slate-400 rounded group-hover:border-blue-500 flex justify-center items-center bg-white transition-colors">
+                            <input type="checkbox" value="${idx}" class="complex-cb opacity-0 absolute w-0 h-0">
+                            <span class="checkmark hidden text-blue-600 text-lg font-black leading-none">✓</span>
+                        </div>
+                        <span class="text-slate-700 text-sm md:text-base font-bold leading-relaxed">${opt}</span>
+                    `;
+                    
+                    const cb = label.querySelector('.complex-cb');
+                    const checkmark = label.querySelector('.checkmark');
+                    cb.addEventListener('change', (e) => {
+                        if(e.target.checked) {
+                            checkmark.classList.remove('hidden');
+                            label.classList.add('bg-blue-50', 'border-blue-400');
+                        } else {
+                            checkmark.classList.add('hidden');
+                            label.classList.remove('bg-blue-50', 'border-blue-400');
+                        }
+                    });
+                    
+                    optContainer.appendChild(label);
+                });
+                
+                const actionDiv = tpl.querySelector('.quiz-action');
+                actionDiv.classList.remove('hidden');
+                
+                const submitBtn = actionDiv.querySelector('button');
+                submitBtn.onclick = () => {
+                    const checkedBoxes = Array.from(optContainer.querySelectorAll('.complex-cb:checked')).map(cb => parseInt(cb.value));
+                    
+                    // Cek kebenaran opsi kompleks (harus sama persis dengan kunci)
+                    const isCorrect = checkedBoxes.length === quiz.answer.length && 
+                                      checkedBoxes.every(val => quiz.answer.includes(val));
+                    
+                    checkQuiz(pIndex, isCorrect ? 'correct' : 'wrong', 'correct');
+                };
+            } else {
+                // UI Opsi Biasa (Pilihan Ganda 1 Jawaban)
+                quiz.options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'bg-slate-50 hover:bg-blue-100 text-slate-700 hover:text-blue-800 font-bold py-3 md:py-4 rounded-xl border-2 border-slate-200 hover:border-blue-400 transition active:scale-95 text-sm md:text-base shadow-sm text-left px-5 leading-relaxed';
+                    btn.innerText = opt;
+                    btn.onclick = () => checkQuiz(pIndex, opt, quiz.answer);
+                    optContainer.appendChild(btn);
+                });
+            }
+            
+            container.innerHTML = '';
+            container.appendChild(tpl);
+            container.classList.remove('hidden');
+        }
+
+        function checkQuiz(pIndex, selected, correct) {
+            const container = document.getElementById(`quiz-container-${pIndex}`);
+            container.classList.add('hidden');
+            container.innerHTML = '';
+            
+            const p = globalState.players[pIndex];
+            
+            if (selected === correct) {
+                playSound('correct');
+                p.energy = Math.min(p.maxEnergy, p.energy + 10);
+                
+                const floatingText = document.createElement('div');
+                floatingText.className = 'absolute inset-0 flex justify-center items-center pointer-events-none z-50';
+                floatingText.innerHTML = `<span class="bg-green-500 text-white font-bold text-2xl px-6 py-3 rounded-full shadow-lg animate-pop">Jawaban Benar! +10 Energi</span>`;
+                document.getElementById(`quadrant-${pIndex}`).appendChild(floatingText);
+                setTimeout(() => floatingText.remove(), 1500);
+
+            } else {
+                playSound('wrong');
+                const floatingText = document.createElement('div');
+                floatingText.className = 'absolute inset-0 flex justify-center items-center pointer-events-none z-50';
+                floatingText.innerHTML = `<span class="bg-red-500 text-white font-bold text-2xl px-6 py-3 rounded-full shadow-lg animate-pop">Jawaban Salah!</span>`;
+                document.getElementById(`quadrant-${pIndex}`).appendChild(floatingText);
+                setTimeout(() => floatingText.remove(), 1500);
+            }
+            updateUI(pIndex);
+        }
+
+        // --- UTILS ---
+        function showModal(title, text) {
+            document.getElementById('msg-title').innerText = title;
+            document.getElementById('msg-text').innerText = text;
+            const modal = document.getElementById('modal-message');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.firstElementChild.classList.remove('scale-95');
+                modal.firstElementChild.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeModalMessage() {
+            const modal = document.getElementById('modal-message');
+            modal.firstElementChild.classList.remove('scale-100');
+            modal.firstElementChild.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+
+        window.onload = () => {
+            updatePlayerNames();
+        };
+    </script>
+</body>
+</html>
